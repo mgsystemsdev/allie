@@ -249,6 +249,29 @@ export default function App() {
                 : '—'}
             </div>
           </div>
+          <div
+            className={`min-w-[90px] flex-1 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center ${
+              animal.handling_gap.overdue ? 'border-[#D4A040]' : 'border-border-hi'
+            }`}
+          >
+            <div
+              className={`font-display text-[18px] font-bold leading-none ${
+                animal.handling_gap.overdue ? 'text-[#D4A040]' : 'text-sand'
+              }`}
+            >
+              {animal.handling_gap.last_date?.slice(5) || '—'}
+            </div>
+            <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Last han.</div>
+            <div className="mt-0.5 text-[10px] text-muted">
+              {animal.handling_gap.last_date == null
+                ? 'None logged'
+                : animal.handling_gap.days_since === 0
+                  ? 'Today'
+                  : animal.handling_gap.overdue
+                    ? `${animal.handling_gap.days_since}d · overdue`
+                    : `${animal.handling_gap.days_since}d ago`}
+            </div>
+          </div>
           <div className="min-w-[90px] flex-1 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center">
             <div className="font-display text-[18px] font-bold leading-none text-sand">
               {animal.last_shed?.date?.slice(5) || '—'}
