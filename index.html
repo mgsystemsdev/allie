@@ -176,10 +176,20 @@ body{background:#1a0e08;display:flex;align-items:flex-start;justify-content:cent
         <div class="form-field"><label>Date</label><input type="date" id="q-date"></div>
         <div class="form-field"><label>Prey Type</label>
           <select id="q-prey">
-            <option>Pinky mouse</option><option>Fuzzy mouse</option>
-            <option selected>Adult mouse</option><option>Small rat</option>
-            <option>Medium rat</option><option>Large rat</option>
-            <option>Day-old chick</option><option>Quail</option><option>Rabbit</option>
+            <option>Pinky mouse</option>
+            <option>Fuzzy mouse</option>
+            <option selected>Adult mouse</option>
+            <option>Norwegian pinky</option>
+            <option>Norwegian fuzzy</option>
+            <option>Norwegian pup</option>
+            <option>Norwegian weaned</option>
+            <option>Norwegian small</option>
+            <option>Norwegian medium</option>
+            <option>Norwegian large</option>
+            <option>Norwegian jumbo</option>
+            <option>Day-old chick</option>
+            <option>Quail</option>
+            <option>Rabbit</option>
           </select>
         </div>
         <div class="form-field"><label>Accepted?</label>
@@ -250,23 +260,21 @@ body{background:#1a0e08;display:flex;align-items:flex-start;justify-content:cent
       <div class="info-row"><span class="info-label">Prep</span><span class="info-val">Frozen/thawed plucked birds — feathers cause regurg</span></div>
     </div>
 
-    <div class="section-label">Full prey size guide — Allie's stage highlighted</div>
+    <div class="section-label">Prey by life stage — Allie's stage highlighted</div>
     <table class="prey-table">
-      <thead><tr><th>Life Stage</th><th>Age / Size</th><th>Prey Item</th><th>Prey Weight</th><th>Frequency</th></tr></thead>
+      <thead><tr><th>Life Stage</th><th>Age</th><th>Recommended</th><th>Acceptable</th><th>Frequency</th></tr></thead>
       <tbody>
-        <tr><td>Hatchling</td><td>0–3 mo / &lt;50g</td><td>Pinky → Fuzzy mouse</td><td>3–8g</td><td>Every 5–7 days</td></tr>
-        <tr><td>Young juvenile</td><td>3–6 mo / 50–150g</td><td>Small mouse</td><td>10–18g</td><td>Every 7 days</td></tr>
-        <tr class="cur"><td>Juvenile <span style="color:var(--sand);font-family:'JetBrains Mono',monospace;font-size:10px;">★ Allie</span></td><td>6–12 mo / 150–400g</td><td>Adult mouse / small rat</td><td>20–50g</td><td>Every 7–10 days</td></tr>
-        <tr><td>Sub-adult</td><td>1–2 yr / 400g–1kg</td><td>Small–medium rat</td><td>60–150g</td><td>Every 10–14 days</td></tr>
-        <tr><td>Adult</td><td>2–3+ yr / 1–2.5kg</td><td>Med–large rat / quail</td><td>180–350g</td><td>Every 14–21 days</td></tr>
-        <tr><td>Large adult</td><td>3+ yr / 2+ kg</td><td>Large rat / rabbit / pigeon</td><td>300–500g</td><td>Every 21 days</td></tr>
+        <tr><td>Hatchling</td><td>0–3 months</td><td>Pinky mouse, Fuzzy mouse, Norwegian pinky</td><td>Adult mouse, Norwegian fuzzy</td><td>Every 5–7 days</td></tr>
+        <tr class="cur"><td>Juvenile <span style="color:var(--sand);font-family:'JetBrains Mono',monospace;font-size:10px;">★ Allie</span></td><td>3–12 months</td><td>Adult mouse, Norwegian fuzzy, Norwegian pup, Norwegian weaned</td><td>Fuzzy mouse, Norwegian pinky, Norwegian small</td><td>Every 7–10 days</td></tr>
+        <tr><td>Sub-adult</td><td>1–3 years</td><td>Norwegian weaned, Norwegian small, Norwegian medium</td><td>Adult mouse, Norwegian pup, Norwegian large</td><td>Every 10–14 days</td></tr>
+        <tr><td>Adult</td><td>3+ years</td><td>Norwegian small, Norwegian medium, Norwegian large</td><td>Norwegian weaned, Norwegian jumbo</td><td>Every 14–21 days</td></tr>
       </tbody>
     </table>
 
-    <div class="section-label" style="margin-top:18px;">Sizing rule</div>
+    <div class="section-label" style="margin-top:18px;">Category rule</div>
     <div class="card">
       <div style="font-size:13px;color:var(--bone-dark);line-height:1.7;padding:4px 0;">
-        Prey should be no wider than <span style="color:var(--sand);font-weight:700;">1.0–1.5×</span> the widest point of Allie's body. A slight visible lump after feeding is perfect. A large bulge = size down. No lump at all = size up.
+        Prey categories: Pinky mouse, Fuzzy mouse, Adult mouse, Norwegian pinky → jumbo, Day-old chick, Quail, Rabbit. Age sets the stage; stage sets recommended vs acceptable. Grams are optional logging only.
       </div>
     </div>
   </div>
