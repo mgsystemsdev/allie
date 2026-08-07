@@ -228,8 +228,8 @@ export default function App() {
                 ? animal.next_feed.days_until < 0
                   ? `${Math.abs(animal.next_feed.days_until)}d overdue`
                   : animal.next_feed.days_until === 0
-                    ? 'Due today'
-                    : `In ${animal.next_feed.days_until}d`
+                    ? `Due today · aim ${animal.feeding_recommendation.feeding_interval.min_days}–${animal.feeding_recommendation.feeding_interval.max_days}d`
+                    : `In ${animal.next_feed.days_until}d · aim ${animal.feeding_recommendation.feeding_interval.min_days}–${animal.feeding_recommendation.feeding_interval.max_days}d`
                 : 'Log a feed'}
             </div>
           </div>

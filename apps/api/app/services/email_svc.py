@@ -208,6 +208,10 @@ def send_event_email(db: Session, kind: str, subject: str, body: str, dedupe_key
         "handling_gap": cfg.event_handling_gap,
         "shed_status": cfg.event_shed_status,
         "regurg": cfg.event_regurg,
+        "maint_water": cfg.event_maint_water,
+        "maint_substrate": cfg.event_maint_substrate,
+        "maint_deep_clean": cfg.event_maint_deep_clean,
+        "weight_due": cfg.event_weight_due,
     }.get(kind, True)
     if not toggle:
         return {"ok": False, "skipped": "event_disabled"}
@@ -222,7 +226,7 @@ def send_event_email(db: Session, kind: str, subject: str, body: str, dedupe_key
 
 
 def evaluate_time_events(db: Session) -> list[dict[str, Any]]:
-    """Handle cleared, feed overdue, handling gap — called from tick."""
+    """Handle cleared, feed overdue, handling gap, maintenance, weight — called from tick."""
     cfg = get_or_create_settings(db)
     if not cfg.email_enabled:
         return []
@@ -275,6 +279,39 @@ def evaluate_time_events(db: Session) -> list[dict[str, Any]]:
                 "handling_gap",
                 f"{name}: handling due",
                 gap["countdown"] + " — and it is clear to handle.",
+                key,
+            )
+        )
+
+    # Maintenance overdue/due (water / sub tray / deep clean) — one-shot per kind per due_date
+    for item in overview.get("maintenance_items") or []:
+        if not item.get("overdue") and not item.get("due_today"):
+            continue
+        event_kind = f"maint_{item['kind']}"
+        key = f"{event_kind}:{item['due_date']}"
+        status = "overdue" if item.get("overdue") else "due today"
+        results.append(
+            send_event_email(
+                db,
+                event_kind,
+                f"{name}: {item['label']} {status}",
+                f"{item['label']} is {status} (due {item['due_date']}). "
+                f"Interval every {item['interval_days']}d · last logged {item['last_date'] or 'never'}.",
+                key,
+            )
+        )
+
+    # Weight log due
+    weight = overview.get("weight_due")
+    if weight and weight.get("due"):
+        key = f"weight_due:{weight['due_date']}"
+        results.append(
+            send_event_email(
+                db,
+                "weight_due",
+                f"{name}: weight log due",
+                weight["countdown"]
+                + f" (every {weight['interval_days']}d · last {weight['last_date'] or 'never'}).",
                 key,
             )
         )

@@ -259,6 +259,12 @@ class AppSettings(Base):
     event_handling_gap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     event_shed_status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     event_regurg: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    event_maint_water: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    event_maint_substrate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    event_maint_deep_clean: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    event_weight_due: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    weight_log_interval_days: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
 
     digest_show_feed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     digest_show_maint: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

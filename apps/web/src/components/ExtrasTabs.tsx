@@ -305,7 +305,7 @@ ${dig.html}
               onChange={(e) => patch('maint_water_days', Number(e.target.value))}
             />
           </Field>
-          <Field label="Substrate every N days">
+          <Field label="Sub tray every N days">
             <Input
               type="number"
               value={s.maint_substrate_days}
@@ -319,9 +319,22 @@ ${dig.html}
               onChange={(e) => patch('maint_deep_clean_days', Number(e.target.value))}
             />
           </Field>
+          <Field label="Weight log every">
+            <Select
+              value={String(s.weight_log_interval_days ?? 7)}
+              onChange={(e) => patch('weight_log_interval_days', Number(e.target.value))}
+            >
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="14">Every 2 weeks</option>
+              <option value="30">Every month</option>
+            </Select>
+          </Field>
           <Field label="Feed interval mode">
             <Select value={s.feed_interval_mode} onChange={(e) => patch('feed_interval_mode', e.target.value)}>
-              <option value="auto">Auto by life stage</option>
+              <option value="auto">Auto (history + stage band)</option>
+              <option value="stage">Life stage only</option>
               <option value="manual">Manual days</option>
             </Select>
           </Field>
@@ -360,6 +373,26 @@ ${dig.html}
           onChange={(v) => patch('event_shed_status', v)}
         />
         <Toggle label="5. Regurgitation logged" checked={s.event_regurg} onChange={(v) => patch('event_regurg', v)} />
+        <Toggle
+          label="6. Water change due / overdue"
+          checked={s.event_maint_water}
+          onChange={(v) => patch('event_maint_water', v)}
+        />
+        <Toggle
+          label="7. Sub tray due / overdue"
+          checked={s.event_maint_substrate}
+          onChange={(v) => patch('event_maint_substrate', v)}
+        />
+        <Toggle
+          label="8. Deep clean due / overdue"
+          checked={s.event_maint_deep_clean}
+          onChange={(v) => patch('event_maint_deep_clean', v)}
+        />
+        <Toggle
+          label="9. Weight log due"
+          checked={s.event_weight_due}
+          onChange={(v) => patch('event_weight_due', v)}
+        />
       </LogForm>
 
       <div className="mb-4 flex flex-wrap gap-2">

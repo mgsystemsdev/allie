@@ -8,22 +8,32 @@ from sqlalchemy.orm import Session
 from app.models import (
     Animal,
     AppSettings,
+    EnvReading,
     Feed,
     Handling,
     Maintenance,
     MaintenanceKind,
+    Regurgitation,
     ShedCycle,
     ShedStatus,
     Weight,
 )
-from app.services.feeding_rules import feeding_config, recommend_feeding, stage_from_months
+from app.services.feeding_rules import feeding_config, stage_from_months
+from app.services.intelligence import (
+    env_alerts,
+    resolve_feed_interval,
+    shed_alerts,
+    shed_prediction,
+    suggest_prey,
+    weight_alerts,
+)
 from app.services.settings_svc import get_or_create_settings
 
 HANDLE_CLEAR_HOURS = 72  # default fallback
 
 MAINTENANCE_LABELS: dict[MaintenanceKind, str] = {
     MaintenanceKind.water: "Water",
-    MaintenanceKind.substrate: "Substrate",
+    MaintenanceKind.substrate: "Sub tray",
     MaintenanceKind.deep_clean: "Deep clean",
 }
 
@@ -51,12 +61,6 @@ def get_animal(db: Session) -> Animal | None:
     return db.scalar(select(Animal).order_by(Animal.id).limit(1))
 
 
-def feed_interval_days(stage: dict[str, str], cfg: AppSettings) -> int:
-    if cfg.feed_interval_mode == "manual" and cfg.feed_interval_days:
-        return int(cfg.feed_interval_days)
-    return int(stage["feed_interval_days"])
-
-
 def maintenance_intervals(cfg: AppSettings) -> dict[MaintenanceKind, int]:
     return {
         MaintenanceKind.water: cfg.maint_water_days,
@@ -65,11 +69,12 @@ def maintenance_intervals(cfg: AppSettings) -> dict[MaintenanceKind, int]:
     }
 
 
-def compute_next_maintenance(
+def compute_all_maintenance(
     rows: list[Maintenance],
     intervals: dict[MaintenanceKind, int] | None = None,
     today: date | None = None,
-) -> dict[str, Any] | None:
+) -> list[dict[str, Any]]:
+    """Due status for every maintenance kind (water, sub tray, deep clean)."""
     today = today or date.today()
     intervals = intervals or {
         MaintenanceKind.water: 3,
@@ -100,12 +105,22 @@ def compute_next_maintenance(
                 "days_until": days_until,
                 "last_date": last_date,
                 "interval_days": interval,
+                "overdue": days_until < 0,
+                "due_today": days_until == 0,
             }
         )
+    return sorted(candidates, key=lambda c: c["days_until"])
 
+
+def compute_next_maintenance(
+    rows: list[Maintenance],
+    intervals: dict[MaintenanceKind, int] | None = None,
+    today: date | None = None,
+) -> dict[str, Any] | None:
+    candidates = compute_all_maintenance(rows, intervals=intervals, today=today)
     if not candidates:
         return None
-    soonest = min(candidates, key=lambda c: c["days_until"])
+    soonest = candidates[0]
     return {
         "kind": soonest["kind"],
         "label": soonest["label"],
@@ -113,6 +128,44 @@ def compute_next_maintenance(
         "days_until": soonest["days_until"],
         "last_date": soonest["last_date"],
         "interval_days": soonest["interval_days"],
+    }
+
+
+def weight_log_status(
+    last_weight_date: date | None,
+    interval_days: int,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """When the next weight log is due based on settings interval."""
+    today = today or date.today()
+    interval = max(1, int(interval_days))
+    if last_weight_date is None:
+        return {
+            "due": True,
+            "overdue": True,
+            "days_since": None,
+            "days_until": 0,
+            "due_date": today.isoformat(),
+            "last_date": None,
+            "interval_days": interval,
+            "countdown": f"No weight logged — log every {interval}d",
+        }
+    due = last_weight_date + timedelta(days=interval)
+    days_until = (due - today).days
+    days_since = (today - last_weight_date).days
+    return {
+        "due": days_until <= 0,
+        "overdue": days_until < 0,
+        "days_since": days_since,
+        "days_until": days_until,
+        "due_date": due.isoformat(),
+        "last_date": last_weight_date.isoformat(),
+        "interval_days": interval,
+        "countdown": (
+            f"Weight overdue by {abs(days_until)} day(s)"
+            if days_until < 0
+            else ("Weight log due today" if days_until == 0 else f"Next weight {days_countdown_label(days_until)}")
+        ),
     }
 
 
@@ -239,7 +292,6 @@ def build_overview(db: Session) -> dict[str, Any]:
     cfg = get_or_create_settings(db)
     age = calc_age(animal.dob)
     stage = stage_from_months(age["months"])
-    interval = feed_interval_days(stage, cfg)
     handle_hours = cfg.handle_clear_hours
     ready_days = cfg.feed_ready_days
     gap_max = cfg.handling_max_gap_days
@@ -248,8 +300,30 @@ def build_overview(db: Session) -> dict[str, Any]:
         db.scalars(select(Feed).where(Feed.animal_id == animal.id).order_by(Feed.date.desc(), Feed.id.desc()))
     )
     last_feed = feeds[0] if feeds else None
-    feeding_recommendation = recommend_feeding(
-        age["months"], last_feed.prey_type if last_feed else None
+
+    regurg_rows = list(
+        db.scalars(
+            select(Regurgitation)
+            .where(Regurgitation.animal_id == animal.id)
+            .order_by(Regurgitation.date.desc(), Regurgitation.id.desc())
+        )
+    )
+    regurg_dates = [r.date for r in regurg_rows]
+
+    interval_info = resolve_feed_interval(
+        feeds=feeds,
+        regurg_dates=regurg_dates,
+        stage_label=stage["label"],
+        mode=cfg.feed_interval_mode,
+        manual_days=cfg.feed_interval_days,
+        last_feed_accepted=last_feed.accepted if last_feed else None,
+    )
+    interval = int(interval_info["interval_days"])
+
+    feeding_recommendation = suggest_prey(
+        age_months=age["months"],
+        feeds=feeds,
+        last_prey=last_feed.prey_type if last_feed else None,
     )
     prey_cfg = feeding_config()
 
@@ -269,6 +343,14 @@ def build_overview(db: Session) -> dict[str, Any]:
     )
     next_maintenance = compute_next_maintenance(
         maintenance_rows, intervals=maintenance_intervals(cfg)
+    )
+    maintenance_items = compute_all_maintenance(
+        maintenance_rows, intervals=maintenance_intervals(cfg), today=date.today()
+    )
+    weight_due = weight_log_status(
+        last_weight.date if last_weight else None,
+        cfg.weight_log_interval_days,
+        today=date.today(),
     )
 
     handlings = list(
@@ -295,6 +377,19 @@ def build_overview(db: Session) -> dict[str, Any]:
         .order_by(ShedCycle.completed_at.desc().nulls_last(), ShedCycle.id.desc())
         .limit(1)
     )
+    completed_sheds = list(
+        db.scalars(
+            select(ShedCycle)
+            .where(ShedCycle.animal_id == animal.id, ShedCycle.status == ShedStatus.shed)
+            .order_by(ShedCycle.started_at.asc())
+        )
+    )
+    latest_env = db.scalar(
+        select(EnvReading)
+        .where(EnvReading.animal_id == animal.id)
+        .order_by(EnvReading.recorded_at.desc(), EnvReading.id.desc())
+        .limit(1)
+    )
 
     next_feed: dict[str, Any] | None = None
     reminders: list[dict[str, str]] = []
@@ -309,24 +404,37 @@ def build_overview(db: Session) -> dict[str, Any]:
             "days_until": days_until,
             "last_feed_date": last_feed.date.isoformat(),
             "interval_days": interval,
+            "interval_source": interval_info["interval_source"],
+            "interval_why": interval_info["why"],
             "countdown": days_countdown_label(days_until),
             "prep_note": feed_prep_note(days_until, ready_days),
         }
         if days_until < 0:
+            band = interval_info["band"]
             reminders.append(
                 {
                     "kind": "feed_overdue",
-                    "message": f"Feed overdue by {abs(days_until)} day(s)",
+                    "message": f"Feed overdue by {abs(days_until)} day(s) — offer prey when ready",
                     "severity": "high",
+                    "why": (
+                        f"After this feed, resume normal {interval}d schedule "
+                        f"(safe band {band['min_days']}–{band['max_days']}d). "
+                        "Don't stretch the next gap just because this one was late."
+                    ),
                 }
             )
         elif days_until <= ready_days:
+            band = interval_info["band"]
             reminders.append(
                 {
                     "kind": "feed_due",
                     "message": f"Feed {days_countdown_label(days_until)}"
                     + (" — thaw/prep prey" if days_until > 0 else ""),
                     "severity": "medium",
+                    "why": (
+                        f"Scheduled every {interval}d "
+                        f"(safe {band['min_days']}–{band['max_days']}d). {interval_info['why']}"
+                    ),
                 }
             )
 
@@ -391,6 +499,7 @@ def build_overview(db: Session) -> dict[str, Any]:
                 "kind": "maintenance_overdue",
                 "message": f"{next_maintenance['label']} overdue by {abs(next_maintenance['days_until'])} day(s)",
                 "severity": "medium",
+                "why": f"Interval {next_maintenance['interval_days']}d · last {next_maintenance['last_date'] or 'never'}",
             }
         )
     elif next_maintenance and next_maintenance["days_until"] <= ready_days:
@@ -399,6 +508,29 @@ def build_overview(db: Session) -> dict[str, Any]:
                 "kind": "maintenance_due",
                 "message": f"{next_maintenance['label']} {days_countdown_label(next_maintenance['days_until'])}",
                 "severity": "low",
+                "why": f"Interval {next_maintenance['interval_days']}d · last {next_maintenance['last_date'] or 'never'}",
+            }
+        )
+
+    # Per-kind overdue reminders (water / sub tray / deep clean)
+    for item in maintenance_items:
+        if item["overdue"] and item["kind"] != (next_maintenance or {}).get("kind"):
+            reminders.append(
+                {
+                    "kind": f"maint_{item['kind']}",
+                    "message": f"{item['label']} overdue by {abs(item['days_until'])} day(s)",
+                    "severity": "medium",
+                    "why": f"Every {item['interval_days']}d · last {item['last_date'] or 'never'}",
+                }
+            )
+
+    if weight_due["due"]:
+        reminders.append(
+            {
+                "kind": "weight_due",
+                "message": weight_due["countdown"],
+                "severity": "medium" if weight_due["overdue"] else "low",
+                "why": f"Weight log every {weight_due['interval_days']}d · last {weight_due['last_date'] or 'never'}",
             }
         )
 
@@ -416,8 +548,16 @@ def build_overview(db: Session) -> dict[str, Any]:
                 "message": f"In shed ({active_shed.status.value}) — raise humidity to 60–70%"
                 + ("; do not feed while opaque" if active_shed.status == ShedStatus.opaque else ""),
                 "severity": "medium",
+                "why": "Active shed cycle — humidity target 60–70%",
             }
         )
+
+    shed_pred = shed_prediction(completed_sheds, today=today)
+    reminders.extend(shed_alerts(shed_pred, active_shed=active_shed is not None))
+    reminders.extend(weight_alerts(weights, stage["label"], today=today))
+    reminders.extend(
+        env_alerts(latest_env, in_shed=active_shed is not None, now=now)
+    )
 
     return {
         "id": animal.id,
@@ -446,6 +586,8 @@ def build_overview(db: Session) -> dict[str, Any]:
         ),
         "next_feed": next_feed,
         "next_maintenance": next_maintenance,
+        "maintenance_items": maintenance_items,
+        "weight_due": weight_due,
         "handling_gap": handling_gap,
         "current_weight_g": last_weight.weight_g if last_weight else None,
         "current_weight_date": last_weight.date.isoformat() if last_weight else None,
@@ -458,6 +600,7 @@ def build_overview(db: Session) -> dict[str, Any]:
             if last_completed_shed
             else None
         ),
+        "shed_prediction": shed_pred,
         "clear_to_handle": clear_to_handle,
         "shed_mode": shed_mode,
         "reminders": reminders,
@@ -465,5 +608,7 @@ def build_overview(db: Session) -> dict[str, Any]:
             "feed_ready_days": ready_days,
             "handle_clear_hours": handle_hours,
             "handling_max_gap_days": gap_max,
+            "feed_interval_mode": cfg.feed_interval_mode,
+            "weight_log_interval_days": cfg.weight_log_interval_days,
         },
     }

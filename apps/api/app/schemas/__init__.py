@@ -256,6 +256,11 @@ class AppSettingsUpdate(BaseModel):
     event_handling_gap: bool | None = None
     event_shed_status: bool | None = None
     event_regurg: bool | None = None
+    event_maint_water: bool | None = None
+    event_maint_substrate: bool | None = None
+    event_maint_deep_clean: bool | None = None
+    event_weight_due: bool | None = None
+    weight_log_interval_days: int | None = None
     digest_show_feed: bool | None = None
     digest_show_maint: bool | None = None
     digest_show_shed: bool | None = None

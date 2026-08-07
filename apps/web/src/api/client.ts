@@ -174,7 +174,7 @@ export function mediaUrl(path: string) {
   return `${API_BASE}${path}`
 }
 
-export type Reminder = { kind: string; message: string; severity: string }
+export type Reminder = { kind: string; message: string; severity: string; why?: string }
 
 export type PreyStatus =
   | 'recommended'
@@ -207,6 +207,10 @@ export type FeedingRecommendation = {
   alternative_prey: string[]
   feeding_interval: FeedingInterval
   prey_status_by_category: Record<string, PreyStatus>
+  suggested_prey?: string | null
+  suggestion_why?: string
+  prey_accept_counts?: Record<string, number>
+  demoted_prey?: string[]
 }
 
 export type FeedingConfig = {
@@ -235,6 +239,10 @@ export type AnimalOverview = {
     days_until: number
     last_feed_date: string
     interval_days: number
+    interval_source?: string
+    interval_why?: string
+    countdown?: string
+    prep_note?: string | null
   } | null
   next_maintenance: {
     kind: string
@@ -244,6 +252,26 @@ export type AnimalOverview = {
     last_date: string | null
     interval_days: number
   } | null
+  maintenance_items?: {
+    kind: string
+    label: string
+    due_date: string
+    days_until: number
+    last_date: string | null
+    interval_days: number
+    overdue: boolean
+    due_today: boolean
+  }[]
+  weight_due?: {
+    due: boolean
+    overdue: boolean
+    days_since: number | null
+    days_until: number
+    due_date: string
+    last_date: string | null
+    interval_days: number
+    countdown: string
+  }
   handling_gap: {
     last_date: string | null
     days_since: number | null
@@ -254,6 +282,15 @@ export type AnimalOverview = {
   current_weight_g: number | null
   current_weight_date: string | null
   last_shed: { id: number; date: string; quality: string | null } | null
+  shed_prediction?: {
+    estimate_date: string | null
+    median_days: number | null
+    days_until: number | null
+    in_window: boolean
+    why: string
+    last_started?: string
+    sample_cycles?: number
+  } | null
   clear_to_handle: {
     ready: boolean
     hours_since_feed: number | null
@@ -429,6 +466,11 @@ export type AppSettings = {
   event_handling_gap: boolean
   event_shed_status: boolean
   event_regurg: boolean
+  event_maint_water: boolean
+  event_maint_substrate: boolean
+  event_maint_deep_clean: boolean
+  event_weight_due: boolean
+  weight_log_interval_days: number
   digest_show_feed: boolean
   digest_show_maint: boolean
   digest_show_shed: boolean

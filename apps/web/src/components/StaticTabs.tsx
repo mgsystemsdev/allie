@@ -11,8 +11,13 @@ export function PreyTab({ animal }: { animal: AnimalOverview }) {
     <div>
       <p className="mb-3.5 text-[13px] text-muted">
         Allie is a <strong className="text-sand">{current.toLowerCase()}</strong> (
-        {animal.age.months} mo). Recommended prey highlighted from age-based rules. All prey
-        frozen/thawed.
+        {animal.age.months} mo). Safest rhythm now: about every{' '}
+        <strong className="text-sand">
+          {animal.feeding_recommendation.feeding_interval.recommended_days}d
+        </strong>{' '}
+        (stay within {animal.feeding_recommendation.feeding_interval.min_days}–
+        {animal.feeding_recommendation.feeding_interval.max_days}). Don&apos;t lengthen the next gap
+        just because a feed was late. All prey frozen/thawed.
       </p>
       <SectionLabel>Bird / other prey</SectionLabel>
       <Card className="mb-3.5 text-[13px] text-bone-dark leading-relaxed">

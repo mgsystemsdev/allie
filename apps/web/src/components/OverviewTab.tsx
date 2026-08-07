@@ -37,7 +37,10 @@ export function OverviewTab({
 }) {
   const preyList = animal.prey_categories
   const defaultPrey =
-    animal.feeding_recommendation.recommended_prey[0] ?? preyList[0] ?? 'Adult mouse'
+    animal.feeding_recommendation.suggested_prey ??
+    animal.feeding_recommendation.recommended_prey[0] ??
+    preyList[0] ??
+    'Adult mouse'
 
   const [date, setDate] = useState(todayStr())
   const [prey, setPrey] = useState(defaultPrey)
@@ -92,7 +95,8 @@ export function OverviewTab({
                       : 'border-border-hi bg-charcoal text-bone-dark'
                 }`}
               >
-                {r.message}
+                <div>{r.message}</div>
+                {r.why && <div className="mt-1 text-[11px] opacity-70">{r.why}</div>}
               </div>
             ))}
           </div>
@@ -102,15 +106,39 @@ export function OverviewTab({
       <Card className="mb-3">
         <CardTitle>Feeding recommendation · {fr.stage}</CardTitle>
         <div className="mt-1 text-[13px] text-bone-dark">
-          Interval every <span className="text-sand">{iv.min_days}–{iv.max_days}d</span>
-          <span className="text-muted"> (use {iv.recommended_days}d)</span>
+          Safest default:{' '}
+          <span className="text-sand">every {next?.interval_days ?? iv.recommended_days}d</span>
+          <span className="text-muted">
+            {' '}
+            (safe range {iv.min_days}–{iv.max_days}d
+            {next?.interval_source ? ` · ${next.interval_source}` : ''})
+          </span>
         </div>
+        <div className="mt-1 text-[12px] text-muted">
+          Handle after feed: {animal.clear_to_handle.clear_after_hours}h timer. Overdue feeds don&apos;t
+          stretch the next gap — resume the normal schedule after you feed.
+        </div>
+        {next?.interval_why && (
+          <div className="mt-1 text-[11px] text-muted">{next.interval_why}</div>
+        )}
         <div className="mt-1.5 text-[12px] text-muted">
-          Recommended: {fr.recommended_prey.join(', ')}
+          Suggested: {fr.suggested_prey ?? fr.recommended_prey[0] ?? '—'}
+          {fr.suggestion_why ? ` — ${fr.suggestion_why}` : ''}
+        </div>
+        <div className="mt-1 text-[12px] text-muted">
+          Stage band: {fr.recommended_prey.join(', ')}
         </div>
         {animal.last_feed && fr.prey_status && (
           <div className={`mt-1.5 text-[12px] ${STATUS_CLASS[fr.prey_status]}`}>
             Last prey ({animal.last_feed.prey_type}): {STATUS_LABEL[fr.prey_status]}
+          </div>
+        )}
+        {animal.shed_prediction?.estimate_date && (
+          <div className="mt-1.5 text-[12px] text-muted">
+            Next shed ~{animal.shed_prediction.estimate_date}
+            {animal.shed_prediction.median_days != null
+              ? ` (median ${animal.shed_prediction.median_days}d cycles)`
+              : ''}
           </div>
         )}
       </Card>

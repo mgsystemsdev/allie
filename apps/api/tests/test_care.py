@@ -110,7 +110,46 @@ def test_next_maintenance_picks_soonest():
     ]
     result = compute_next_maintenance(rows, today=today)
     assert result["kind"] == "substrate"
+    assert result["label"] == "Sub tray"
     assert result["days_until"] < 0
+
+
+def test_all_maintenance_kinds():
+    from app.services.care import compute_all_maintenance
+
+    today = date(2026, 8, 10)
+    rows = [
+        SimpleNamespace(kind=MaintenanceKind.water, date=date(2026, 8, 9)),
+        SimpleNamespace(kind=MaintenanceKind.substrate, date=date(2026, 8, 1)),
+        SimpleNamespace(kind=MaintenanceKind.deep_clean, date=date(2026, 5, 1)),
+    ]
+    items = compute_all_maintenance(rows, today=today)
+    assert len(items) == 3
+    kinds = {i["kind"] for i in items}
+    assert kinds == {"water", "substrate", "deep_clean"}
+    deep = next(i for i in items if i["kind"] == "deep_clean")
+    assert deep["overdue"] is True
+    assert deep["label"] == "Deep clean"
+
+
+def test_weight_log_status():
+    from app.services.care import weight_log_status
+
+    today = date(2026, 8, 10)
+    none = weight_log_status(None, 7, today=today)
+    assert none["due"] is True
+    assert none["overdue"] is True
+
+    fresh = weight_log_status(date(2026, 8, 8), 7, today=today)
+    assert fresh["due"] is False
+    assert fresh["days_until"] == 5
+
+    due = weight_log_status(date(2026, 8, 3), 7, today=today)
+    assert due["due"] is True
+    assert due["days_until"] == 0
+
+    overdue = weight_log_status(date(2026, 7, 1), 7, today=today)
+    assert overdue["overdue"] is True
 
 
 def test_days_countdown_label():
@@ -132,6 +171,9 @@ def test_settings_defaults():
     assert DEFAULTS["handling_max_gap_days"] == 2
     assert DEFAULTS["feed_ready_days"] == 2
     assert DEFAULTS["handle_clear_hours"] == 72
+    assert DEFAULTS["weight_log_interval_days"] == 7
+    assert DEFAULTS["event_maint_water"] is True
+    assert DEFAULTS["event_weight_due"] is True
 
 
 def test_already_sent_helper_signature():

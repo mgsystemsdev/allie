@@ -126,7 +126,7 @@ export function HabitatTab() {
           <Field label="Kind">
             <Select value={mKind} onChange={(e) => setMKind(e.target.value)}>
               <option value="water">Water change</option>
-              <option value="substrate">Substrate change</option>
+              <option value="substrate">Sub tray</option>
               <option value="deep_clean">Deep clean</option>
             </Select>
           </Field>
@@ -151,7 +151,8 @@ export function HabitatTab() {
           {maint.map((m) => (
             <li key={m.id} className="flex justify-between rounded-lg border border-border-hi bg-bark px-3 py-2 text-[13px]">
               <span>
-                <span className="font-mono text-sand">{m.date}</span> · {m.kind.replace('_', ' ')}
+                <span className="font-mono text-sand">{m.date}</span> ·{' '}
+                {m.kind === 'substrate' ? 'Sub tray' : m.kind === 'deep_clean' ? 'Deep clean' : m.kind}
                 {m.notes ? ` — ${m.notes}` : ''}
               </span>
               <BtnSm
