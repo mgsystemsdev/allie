@@ -1,13 +1,15 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from app.models import MaintenanceKind
 from app.services.care import (
     HANDLE_CLEAR_HOURS,
     calc_age,
+    compute_clear_to_handle,
     compute_next_maintenance,
     days_countdown_label,
     feed_prep_note,
+    format_duration,
 )
 from app.services.email_svc import already_sent
 from app.services.feeding_rules import stage_from_months
@@ -39,6 +41,50 @@ def test_stage_adult():
 
 def test_handle_clear_constant():
     assert HANDLE_CLEAR_HOURS == 72
+
+
+def test_format_duration():
+    assert format_duration(68 * 3600) == "2d 20h 0m"
+    assert format_duration(2 * 86400 + 3 * 3600 + 5 * 60) == "2d 3h 5m"
+    assert format_duration(45 * 60) == "45m"
+    assert format_duration(5 * 3600 + 12 * 60) == "5h 12m"
+
+
+def test_clear_to_handle_starts_at_created_at():
+    started = datetime(2026, 8, 6, 22, 0, 0, tzinfo=timezone.utc)
+    now = started + timedelta(hours=4)
+    feed = SimpleNamespace(accepted=True, created_at=started, date=date(2026, 8, 6))
+    out = compute_clear_to_handle(feed, 72, now=now)
+    assert out["ready"] is False
+    assert out["seconds_left"] == 68 * 3600
+    assert out["countdown"] == "2d 20h 0m"
+    assert out["clear_at"] is not None
+    assert out["timer_started_at"] == started.isoformat()
+    assert "timer" in out["message"]
+
+
+def test_clear_to_handle_ready_after_72h():
+    started = datetime(2026, 8, 1, 12, 0, 0, tzinfo=timezone.utc)
+    now = started + timedelta(hours=72, minutes=1)
+    feed = SimpleNamespace(accepted=True, created_at=started, date=date(2026, 8, 1))
+    out = compute_clear_to_handle(feed, 72, now=now)
+    assert out["ready"] is True
+    assert out["seconds_left"] == 0
+    assert out["message"] == "Clear to handle"
+
+
+def test_clear_to_handle_refused_skips_timer():
+    started = datetime(2026, 8, 6, 22, 0, 0, tzinfo=timezone.utc)
+    feed = SimpleNamespace(accepted=False, created_at=started, date=date(2026, 8, 6))
+    out = compute_clear_to_handle(feed, 72, now=started)
+    assert out["ready"] is True
+    assert "refused" in out["message"].lower()
+
+
+def test_clear_to_handle_no_feed():
+    out = compute_clear_to_handle(None, 72)
+    assert out["ready"] is True
+    assert out["timer_started_at"] is None
 
 
 def test_next_feed_math():
@@ -85,8 +131,8 @@ def test_settings_defaults():
     assert DEFAULTS["digest_time_1"] == "08:00"
     assert DEFAULTS["handling_max_gap_days"] == 2
     assert DEFAULTS["feed_ready_days"] == 2
+    assert DEFAULTS["handle_clear_hours"] == 72
 
 
 def test_already_sent_helper_signature():
-    # smoke: function exists and is callable
     assert callable(already_sent)

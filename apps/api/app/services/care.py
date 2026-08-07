@@ -134,6 +134,95 @@ def feed_prep_note(days_until: int, ready_days: int) -> str | None:
     return None
 
 
+def format_duration(seconds: float) -> str:
+    """Human countdown like 2d 20h 15m / 68h 12m / 45m."""
+    total = max(0, int(seconds))
+    days, rem = divmod(total, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, _ = divmod(rem, 60)
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days}d")
+    if hours or days:
+        parts.append(f"{hours}h")
+    parts.append(f"{minutes}m")
+    return " ".join(parts)
+
+
+def compute_clear_to_handle(
+    last_feed: Feed | None,
+    handle_hours: int,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """72h (configurable) post-feed wait. Timer starts at feed.created_at."""
+    now = now or datetime.now(tz=ZoneInfo("UTC"))
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=ZoneInfo("UTC"))
+
+    if last_feed is None:
+        return {
+            "ready": True,
+            "hours_since_feed": None,
+            "clear_after_hours": handle_hours,
+            "hours_left": 0,
+            "seconds_left": 0,
+            "clear_at": None,
+            "timer_started_at": None,
+            "countdown": None,
+            "message": "No feeds logged — clear to handle",
+        }
+
+    if not last_feed.accepted:
+        started = last_feed.created_at
+        if started is not None and started.tzinfo is None:
+            started = started.replace(tzinfo=ZoneInfo("UTC"))
+        return {
+            "ready": True,
+            "hours_since_feed": None,
+            "clear_after_hours": handle_hours,
+            "hours_left": 0,
+            "seconds_left": 0,
+            "clear_at": None,
+            "timer_started_at": started.isoformat() if started else None,
+            "countdown": None,
+            "message": "Last feed refused — clear to handle",
+        }
+
+    started = last_feed.created_at
+    if started is None:
+        # Legacy fallback: midnight on feed date (UTC)
+        started = datetime.combine(last_feed.date, datetime.min.time(), tzinfo=ZoneInfo("UTC"))
+    elif started.tzinfo is None:
+        started = started.replace(tzinfo=ZoneInfo("UTC"))
+
+    clear_at = started + timedelta(hours=handle_hours)
+    seconds_left = (clear_at - now).total_seconds()
+    hours_since = (now - started).total_seconds() / 3600
+    ready = seconds_left <= 0
+    seconds_left_pos = max(0, seconds_left)
+    hours_left = seconds_left_pos / 3600
+    countdown = format_duration(seconds_left_pos) if not ready else None
+
+    if ready:
+        message = "Clear to handle"
+    else:
+        message = f"Wait {countdown} more after feed (72h timer)" if handle_hours == 72 else (
+            f"Wait {countdown} more after feed ({handle_hours}h timer)"
+        )
+
+    return {
+        "ready": ready,
+        "hours_since_feed": round(hours_since, 1),
+        "clear_after_hours": handle_hours,
+        "hours_left": round(hours_left, 2) if not ready else 0,
+        "seconds_left": int(seconds_left_pos) if not ready else 0,
+        "clear_at": clear_at.isoformat(),
+        "timer_started_at": started.isoformat(),
+        "countdown": countdown,
+        "message": message,
+    }
+
+
 def local_now(cfg: AppSettings) -> datetime:
     try:
         tz = ZoneInfo(cfg.timezone)
@@ -208,9 +297,9 @@ def build_overview(db: Session) -> dict[str, Any]:
     )
 
     next_feed: dict[str, Any] | None = None
-    clear_to_handle: dict[str, Any]
     reminders: list[dict[str, str]] = []
     today = date.today()
+    now = local_now(cfg)
 
     if last_feed:
         due = last_feed.date + timedelta(days=interval)
@@ -241,37 +330,20 @@ def build_overview(db: Session) -> dict[str, Any]:
                 }
             )
 
-        feed_dt = datetime.combine(last_feed.date, datetime.min.time())
-        hours_since = (datetime.now() - feed_dt).total_seconds() / 3600
-        ready = (not last_feed.accepted) or hours_since >= handle_hours
-        hours_left = max(0, int(handle_hours - hours_since))
-        clear_to_handle = {
-            "ready": ready,
-            "hours_since_feed": round(hours_since, 1),
-            "clear_after_hours": handle_hours,
-            "hours_left": hours_left if not ready else 0,
-            "message": "Clear to handle" if ready else f"Wait ~{hours_left}h more after feed",
-        }
-        if not ready:
-            reminders.append(
-                {
-                    "kind": "handle_wait",
-                    "message": clear_to_handle["message"],
-                    "severity": "low",
-                }
-            )
-    else:
-        clear_to_handle = {
-            "ready": True,
-            "hours_since_feed": None,
-            "clear_after_hours": handle_hours,
-            "hours_left": 0,
-            "message": "No feeds logged — clear to handle",
-        }
+    clear_to_handle = compute_clear_to_handle(last_feed, handle_hours, now=now)
+    if last_feed is None:
         reminders.append(
             {
                 "kind": "feed_none",
                 "message": "No feeds logged yet",
+                "severity": "low",
+            }
+        )
+    elif not clear_to_handle["ready"]:
+        reminders.append(
+            {
+                "kind": "handle_wait",
+                "message": clear_to_handle["message"],
                 "severity": "low",
             }
         )

@@ -15,6 +15,7 @@ import { HealthTab } from './components/HealthTab'
 import { OverviewTab } from './components/OverviewTab'
 import { PreyTab, SpeciesTab } from './components/StaticTabs'
 import { Btn, Field, Input } from './components/ui'
+import { useCountdown } from './hooks/useCountdown'
 
 type TabId =
   | 'overview'
@@ -133,6 +134,18 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
+  const handleTimer = useCountdown(
+    animal?.clear_to_handle.clear_at,
+    animal?.clear_to_handle.ready ?? true,
+  )
+
+  useEffect(() => {
+    if (!animal) return
+    if (!animal.clear_to_handle.ready && handleTimer.done && animal.clear_to_handle.clear_at) {
+      void refresh()
+    }
+  }, [handleTimer.done, animal, refresh])
+
   if (!authed) {
     return <Login onOk={() => setAuthed(true)} />
   }
@@ -172,7 +185,9 @@ export default function App() {
                   : 'border-[#D4A040] bg-[#3a2a10] text-[#E8C080]'
               }`}
             >
-              {animal.clear_to_handle.ready ? 'Clear to handle' : 'Wait to handle'}
+              {animal.clear_to_handle.ready
+                ? 'Clear to handle'
+                : `Wait ${handleTimer.label || animal.clear_to_handle.countdown || '…'}`}
             </div>
             <div className="mt-1.5 font-mono text-[11px] tracking-wide text-muted">{clock}</div>
           </div>

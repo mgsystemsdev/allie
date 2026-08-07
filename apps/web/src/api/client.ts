@@ -259,6 +259,10 @@ export type AnimalOverview = {
     hours_since_feed: number | null
     clear_after_hours: number
     hours_left?: number
+    seconds_left?: number
+    clear_at?: string | null
+    timer_started_at?: string | null
+    countdown?: string | null
     message: string
   }
   shed_mode: {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, todayStr, type AnimalOverview, type Handling } from '../api/client'
+import { useCountdown } from '../hooks/useCountdown'
 import { Btn, BtnSm, Empty, Field, Input, LogForm, SectionLabel, Select } from './ui'
 
 export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onChange: () => void }) {
@@ -18,15 +19,41 @@ export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onCh
   }, [])
 
   const blocked = !animal.clear_to_handle.ready
+  const timer = useCountdown(animal.clear_to_handle.clear_at, animal.clear_to_handle.ready)
+
+  useEffect(() => {
+    if (blocked && timer.done && animal.clear_to_handle.clear_at) {
+      onChange()
+    }
+  }, [blocked, timer.done, animal.clear_to_handle.clear_at, onChange])
+
+  const hours = animal.clear_to_handle.clear_after_hours
 
   return (
     <div>
       <div
-        className={`mb-4 rounded-lg border px-3 py-2 text-[13px] ${
+        className={`mb-4 rounded-lg border px-3 py-3 text-[13px] ${
           blocked ? 'border-[#D4A040] bg-[#3a2a10] text-[#E8C080]' : 'border-olive bg-[#1a3a20] text-sage'
         }`}
       >
-        {animal.clear_to_handle.message}
+        {blocked ? (
+          <>
+            <div className="font-bold">
+              {hours}h post-feed timer — {timer.label || animal.clear_to_handle.countdown || '…'} remaining
+            </div>
+            <div className="mt-1 text-[12px] opacity-90">
+              Started at feed log
+              {animal.clear_to_handle.timer_started_at
+                ? ` · ${new Date(animal.clear_to_handle.timer_started_at).toLocaleString()}`
+                : ''}
+              {animal.clear_to_handle.clear_at
+                ? ` · clears ${new Date(animal.clear_to_handle.clear_at).toLocaleString()}`
+                : ''}
+            </div>
+          </>
+        ) : (
+          <div className="font-bold">{animal.clear_to_handle.message}</div>
+        )}
       </div>
 
       <SectionLabel>Log handling</SectionLabel>
@@ -63,7 +90,7 @@ export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onCh
             onChange()
           }}
         >
-          {blocked ? 'Blocked — wait after feed' : 'Log Handling'}
+          {blocked ? 'Locked until timer clears' : 'Log Handling'}
         </Btn>
       </LogForm>
 
@@ -71,37 +98,30 @@ export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onCh
       {rows.length === 0 ? (
         <Empty>No handling sessions logged.</Empty>
       ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-border text-left font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
-              <th className="px-2.5 py-1.5">Date</th>
-              <th className="px-2.5 py-1.5">Duration</th>
-              <th className="px-2.5 py-1.5">Temperament</th>
-              <th className="px-2.5 py-1.5">Notes</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b border-[#3a2415] text-[12px] text-bone-dark">
-                <td className="px-2.5 py-2 font-mono text-[11px]">{r.date}</td>
-                <td className="px-2.5 py-2">{r.duration_min} min</td>
-                <td className="px-2.5 py-2 capitalize text-sand">{r.temperament}</td>
-                <td className="px-2.5 py-2 text-muted">{r.notes || '—'}</td>
-                <td className="px-2.5 py-2">
-                  <BtnSm
-                    onClick={async () => {
-                      await api.handlings.remove(r.id)
-                      await load()
-                    }}
-                  >
-                    ✕
-                  </BtnSm>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="space-y-2">
+          {rows.map((r) => (
+            <li
+              key={r.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-[#2a1a10] px-3 py-2 text-[13px]"
+            >
+              <div>
+                <div className="font-bold text-bone">
+                  {r.date} · {r.duration_min} min · {r.temperament}
+                </div>
+                <div className="text-muted">{r.notes || '—'}</div>
+              </div>
+              <BtnSm
+                onClick={async () => {
+                  await api.handlings.remove(r.id)
+                  await load()
+                  onChange()
+                }}
+              >
+                ✕
+              </BtnSm>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
