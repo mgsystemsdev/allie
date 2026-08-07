@@ -283,9 +283,9 @@ export default function App() {
 
       <main className="px-6 pb-7 pt-5">
         {tab === 'overview' && <OverviewTab animal={animal} feeds={feeds} onChange={refresh} />}
-        {tab === 'feeding' && <FeedingTab onChange={refresh} />}
+        {tab === 'feeding' && <FeedingTab animal={animal} onChange={refresh} />}
         {tab === 'handling' && <HandlingTab animal={animal} onChange={refresh} />}
-        {tab === 'prey' && <PreyTab />}
+        {tab === 'prey' && <PreyTab animal={animal} />}
         {tab === 'habitat' && <HabitatTab />}
         {tab === 'health' && <HealthTab onChange={refresh} />}
         {tab === 'journal' && <JournalTab />}

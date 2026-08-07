@@ -8,9 +8,9 @@ from app.services.care import (
     compute_next_maintenance,
     days_countdown_label,
     feed_prep_note,
-    stage_from_months,
 )
 from app.services.email_svc import already_sent
+from app.services.feeding_rules import stage_from_months
 from app.services.settings_svc import DEFAULTS
 
 

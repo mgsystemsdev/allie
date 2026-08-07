@@ -16,6 +16,7 @@ from app.models import (
     ShedStatus,
     Weight,
 )
+from app.services.feeding_rules import feeding_config, recommend_feeding, stage_from_months
 from app.services.settings_svc import get_or_create_settings
 
 HANDLE_CLEAR_HOURS = 72  # default fallback
@@ -44,16 +45,6 @@ def calc_age(dob: date, now: date | None = None) -> dict[str, int]:
     days = (now - tmp).days
     total = (now - dob).days
     return {"months": max(months, 0), "days": max(days, 0), "total": max(total, 0)}
-
-
-def stage_from_months(months: int) -> dict[str, str]:
-    if months < 3:
-        return {"label": "Hatchling", "desc": "0–3 months", "feed_interval_days": 6}
-    if months < 12:
-        return {"label": "Juvenile", "desc": "3–12 months", "feed_interval_days": 8}
-    if months < 36:
-        return {"label": "Sub-adult", "desc": "1–3 years", "feed_interval_days": 12}
-    return {"label": "Adult", "desc": "3+ years", "feed_interval_days": 17}
 
 
 def get_animal(db: Session) -> Animal | None:
@@ -168,6 +159,10 @@ def build_overview(db: Session) -> dict[str, Any]:
         db.scalars(select(Feed).where(Feed.animal_id == animal.id).order_by(Feed.date.desc(), Feed.id.desc()))
     )
     last_feed = feeds[0] if feeds else None
+    feeding_recommendation = recommend_feeding(
+        age["months"], last_feed.prey_type if last_feed else None
+    )
+    prey_cfg = feeding_config()
 
     weights = list(
         db.scalars(
@@ -363,6 +358,9 @@ def build_overview(db: Session) -> dict[str, Any]:
         "status": animal.status,
         "age": age,
         "stage": stage,
+        "prey_categories": prey_cfg["prey_categories"],
+        "feeding_stages": prey_cfg["stages"],
+        "feeding_recommendation": feeding_recommendation,
         "total_feeds": len(feeds),
         "last_feed": (
             {

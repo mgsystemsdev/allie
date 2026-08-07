@@ -1,23 +1,30 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   api,
   todayStr,
   type AnimalOverview,
   type Feed,
+  type PreyStatus,
 } from '../api/client'
 import { Btn, BtnSm, Card, CardTitle, Empty, Field, Input, LogForm, SectionLabel, Select } from './ui'
 
-const PREY = [
-  'Pinky mouse',
-  'Fuzzy mouse',
-  'Adult mouse',
-  'Small rat',
-  'Medium rat',
-  'Large rat',
-  'Day-old chick',
-  'Quail',
-  'Rabbit',
-]
+const STATUS_LABEL: Record<PreyStatus, string> = {
+  recommended: 'Recommended',
+  acceptable: 'Acceptable',
+  alternative: 'Alternative',
+  too_small: 'Too small',
+  too_large: 'Too large',
+  unknown: 'Unknown',
+}
+
+const STATUS_CLASS: Record<PreyStatus, string> = {
+  recommended: 'text-sage',
+  acceptable: 'text-sand',
+  alternative: 'text-bone-dark',
+  too_small: 'text-[#E8C080]',
+  too_large: 'text-[#E08070]',
+  unknown: 'text-muted',
+}
 
 export function OverviewTab({
   animal,
@@ -28,13 +35,21 @@ export function OverviewTab({
   feeds: Feed[]
   onChange: () => void
 }) {
+  const preyList = animal.prey_categories
+  const defaultPrey =
+    animal.feeding_recommendation.recommended_prey[0] ?? preyList[0] ?? 'Adult mouse'
+
   const [date, setDate] = useState(todayStr())
-  const [prey, setPrey] = useState('Adult mouse')
+  const [prey, setPrey] = useState(defaultPrey)
   const [accepted, setAccepted] = useState(true)
   const [preyWeight, setPreyWeight] = useState('')
   const [snakeWeight, setSnakeWeight] = useState('')
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const liveStatus: PreyStatus | null = useMemo(() => {
+    return animal.feeding_recommendation.prey_status_by_category[prey] ?? 'unknown'
+  }, [animal.feeding_recommendation.prey_status_by_category, prey])
 
   async function logFeed() {
     setBusy(true)
@@ -57,6 +72,8 @@ export function OverviewTab({
   }
 
   const next = animal.next_feed
+  const fr = animal.feeding_recommendation
+  const iv = fr.feeding_interval
 
   return (
     <div>
@@ -81,6 +98,22 @@ export function OverviewTab({
           </div>
         </>
       )}
+
+      <Card className="mb-3">
+        <CardTitle>Feeding recommendation · {fr.stage}</CardTitle>
+        <div className="mt-1 text-[13px] text-bone-dark">
+          Interval every <span className="text-sand">{iv.min_days}–{iv.max_days}d</span>
+          <span className="text-muted"> (use {iv.recommended_days}d)</span>
+        </div>
+        <div className="mt-1.5 text-[12px] text-muted">
+          Recommended: {fr.recommended_prey.join(', ')}
+        </div>
+        {animal.last_feed && fr.prey_status && (
+          <div className={`mt-1.5 text-[12px] ${STATUS_CLASS[fr.prey_status]}`}>
+            Last prey ({animal.last_feed.prey_type}): {STATUS_LABEL[fr.prey_status]}
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         <Card>
@@ -124,10 +157,17 @@ export function OverviewTab({
           </Field>
           <Field label="Prey Type">
             <Select value={prey} onChange={(e) => setPrey(e.target.value)}>
-              {PREY.map((p) => (
-                <option key={p}>{p}</option>
+              {preyList.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </Select>
+            {liveStatus && (
+              <div className={`mt-1 text-[11px] ${STATUS_CLASS[liveStatus]}`}>
+                {STATUS_LABEL[liveStatus]} for {fr.stage}
+              </div>
+            )}
           </Field>
           <Field label="Accepted?">
             <Select

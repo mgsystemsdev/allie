@@ -1,58 +1,74 @@
 import { Card, SectionLabel } from './ui'
+import type { AnimalOverview } from '../api/client'
 
-export function PreyTab() {
+const STAGE_ORDER = ['Hatchling', 'Juvenile', 'Sub-adult', 'Adult'] as const
+
+export function PreyTab({ animal }: { animal: AnimalOverview }) {
+  const current = animal.stage.label
+  const alt = animal.feeding_recommendation.alternative_prey
+
   return (
     <div>
       <p className="mb-3.5 text-[13px] text-muted">
-        Allie is a <strong className="text-sand">juvenile</strong>. Recommended prey row is highlighted. All
-        prey frozen/thawed.
+        Allie is a <strong className="text-sand">{current.toLowerCase()}</strong> (
+        {animal.age.months} mo). Recommended prey highlighted from age-based rules. All prey
+        frozen/thawed.
       </p>
-      <SectionLabel>Bird prey</SectionLabel>
+      <SectionLabel>Bird / other prey</SectionLabel>
       <Card className="mb-3.5 text-[13px] text-bone-dark leading-relaxed">
-        At juvenile stage, <strong className="text-sand">day-old chicks</strong> are occasional variety only.
-        Quail for sub-adult (~1.5 kg+). Birds are high fat — use sparingly.
+        For {current}:{' '}
+        {alt.length > 0 ? (
+          <>
+            <strong className="text-sand">{alt.join(', ')}</strong> as occasional alternative only.
+          </>
+        ) : (
+          <>no bird/other alternatives listed for this stage.</>
+        )}{' '}
+        Use sparingly.
       </Card>
-      <SectionLabel>Prey size guide</SectionLabel>
+      <SectionLabel>Prey by life stage</SectionLabel>
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-border bg-charcoal text-left font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
             <th className="px-2.5 py-1.5">Life Stage</th>
-            <th className="px-2.5 py-1.5">Age / Size</th>
-            <th className="px-2.5 py-1.5">Prey Item</th>
-            <th className="px-2.5 py-1.5">Prey Weight</th>
+            <th className="px-2.5 py-1.5">Age</th>
+            <th className="px-2.5 py-1.5">Recommended</th>
+            <th className="px-2.5 py-1.5">Acceptable</th>
             <th className="px-2.5 py-1.5">Frequency</th>
           </tr>
         </thead>
         <tbody className="text-[12px] text-bone-dark">
-          {[
-            ['Hatchling', '0–3 mo / <50g', 'Pinky → Fuzzy mouse', '3–8g', 'Every 5–7 days'],
-            ['Young juvenile', '3–6 mo / 50–150g', 'Small mouse', '10–18g', 'Every 7 days'],
-            ['Juvenile ★ Allie', '6–12 mo / 150–400g', 'Adult mouse / small rat', '20–50g', 'Every 7–10 days', true],
-            ['Sub-adult', '1–2 yr / 400g–1kg', 'Small–medium rat', '60–150g', 'Every 10–14 days'],
-            ['Adult', '2–3+ yr / 1–2.5kg', 'Med–large rat / quail', '180–350g', 'Every 14–21 days'],
-            ['Large adult', '3+ yr / 2+ kg', 'Large rat / rabbit / pigeon', '300–500g', 'Every 21 days'],
-          ].map((row) => (
-            <tr
-              key={String(row[0])}
-              className={`border-b border-[#3a2415] ${row[5] ? 'border-l-[3px] border-l-sand bg-[#4a2c14] text-bone' : ''}`}
-            >
-              {row.slice(0, 5).map((c, i) => (
-                <td key={i} className="px-2.5 py-2">
-                  {c}
+          {STAGE_ORDER.map((label) => {
+            const rules = animal.feeding_stages[label]
+            if (!rules) return null
+            const cur = label === current
+            const iv = rules.feeding_interval
+            return (
+              <tr
+                key={label}
+                className={`border-b border-[#3a2415] ${cur ? 'border-l-[3px] border-l-sand bg-[#4a2c14] text-bone' : ''}`}
+              >
+                <td className="px-2.5 py-2">{cur ? `★ ${label}` : label}</td>
+                <td className="px-2.5 py-2">{rules.desc}</td>
+                <td className="px-2.5 py-2">{rules.recommended.join(', ')}</td>
+                <td className="px-2.5 py-2">{rules.acceptable.join(', ')}</td>
+                <td className="px-2.5 py-2">
+                  Every {iv.min_days}–{iv.max_days} days
                 </td>
-              ))}
-            </tr>
-          ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
-      <SectionLabel>Sizing rule</SectionLabel>
+      <SectionLabel>Category rule</SectionLabel>
       <Card className="text-[13px] leading-relaxed text-bone-dark">
-        Prey should be no wider than <span className="font-bold text-sand">1.0–1.5×</span> the widest point of
-        Allie&apos;s body. A slight visible lump after feeding is perfect.
+        Pick a prey category from the list. Age sets the stage; stage sets recommended vs acceptable
+        vs too small / too large. Grams are optional logging only — not used for recommendations.
       </Card>
     </div>
   )
 }
+
 
 export function SpeciesTab() {
   const facts: [string, string][] = [

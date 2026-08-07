@@ -44,6 +44,13 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   animal: () => request<AnimalOverview>('/api/animal'),
+  feeding: {
+    config: () => request<FeedingConfig>('/api/feeding/config'),
+    recommend: (prey?: string | null) => {
+      const q = prey != null && prey !== '' ? `?prey=${encodeURIComponent(prey)}` : ''
+      return request<FeedingRecommendation>(`/api/feeding/recommend${q}`)
+    },
+  },
   feeds: {
     list: () => request<Feed[]>('/api/feeds'),
     create: (body: FeedCreate) =>
@@ -169,6 +176,44 @@ export function mediaUrl(path: string) {
 
 export type Reminder = { kind: string; message: string; severity: string }
 
+export type PreyStatus =
+  | 'recommended'
+  | 'acceptable'
+  | 'too_small'
+  | 'too_large'
+  | 'alternative'
+  | 'unknown'
+
+export type FeedingInterval = {
+  min_days: number
+  max_days: number
+  recommended_days: number
+}
+
+export type FeedingStageRules = {
+  desc: string
+  recommended: string[]
+  acceptable: string[]
+  alternative: string[]
+  feeding_interval: FeedingInterval
+}
+
+export type FeedingRecommendation = {
+  stage: string
+  selected_prey: string | null
+  prey_status: PreyStatus | null
+  recommended_prey: string[]
+  acceptable_prey: string[]
+  alternative_prey: string[]
+  feeding_interval: FeedingInterval
+  prey_status_by_category: Record<string, PreyStatus>
+}
+
+export type FeedingConfig = {
+  prey_categories: string[]
+  stages: Record<string, FeedingStageRules>
+}
+
 export type AnimalOverview = {
   id: number
   name: string
@@ -180,6 +225,9 @@ export type AnimalOverview = {
   status: string
   age: { months: number; days: number; total: number }
   stage: { label: string; desc: string; feed_interval_days: number }
+  prey_categories: string[]
+  feeding_stages: Record<string, FeedingStageRules>
+  feeding_recommendation: FeedingRecommendation
   total_feeds: number
   last_feed: { id: number; date: string; prey_type: string; accepted: boolean } | null
   next_feed: {

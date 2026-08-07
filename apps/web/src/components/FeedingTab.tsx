@@ -7,10 +7,18 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { api, todayStr, type Regurg, type Weight } from '../api/client'
+import { api, todayStr, type AnimalOverview, type Weight, type Regurg } from '../api/client'
 import { Btn, BtnSm, Card, Empty, Field, Input, LogForm, SectionLabel, Select } from './ui'
 
-export function FeedingTab({ onChange }: { onChange: () => void }) {
+const STAGE_ORDER = ['Hatchling', 'Juvenile', 'Sub-adult', 'Adult'] as const
+
+export function FeedingTab({
+  animal,
+  onChange,
+}: {
+  animal: AnimalOverview
+  onChange: () => void
+}) {
   const [weights, setWeights] = useState<Weight[]>([])
   const [regurgs, setRegurgs] = useState<Regurg[]>([])
   const [wDate, setWDate] = useState(todayStr())
@@ -29,29 +37,41 @@ export function FeedingTab({ onChange }: { onChange: () => void }) {
     void load()
   }, [])
 
+  const stages = animal.feeding_stages
+  const current = animal.stage.label
+
   return (
     <div>
       <SectionLabel>Feeding frequency by life stage</SectionLabel>
       <Card className="mb-3">
-        {[
-          ['Hatchling (0–3 mo)', '100%', 'Every 5–7d'],
-          ['★ Juvenile (3–12 mo) — Allie', '75%', 'Every 7–10d', true],
-          ['Sub-adult (1–3 yr)', '55%', 'Every 10–14d'],
-          ['Adult (3+ yr)', '35%', 'Every 14–21d'],
-        ].map(([label, width, freq, cur]) => (
-          <div
-            key={String(label)}
-            className={`flex items-center justify-between border-b border-border py-2 text-[13px] last:border-0 ${cur ? 'rounded-md bg-[rgba(196,148,106,0.08)] px-2' : ''}`}
-          >
-            <span className={cur ? 'text-sand' : 'text-muted'}>{label}</span>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-28 overflow-hidden rounded bg-charcoal">
-                <div className="h-full rounded bg-sand" style={{ width: String(width) }} />
+        {STAGE_ORDER.map((label) => {
+          const rules = stages[label]
+          if (!rules) return null
+          const iv = rules.feeding_interval
+          const cur = label === current
+          const widthPct = Math.round((100 * (22 - iv.recommended_days)) / 16)
+          return (
+            <div
+              key={label}
+              className={`flex items-center justify-between border-b border-border py-2 text-[13px] last:border-0 ${cur ? 'rounded-md bg-[rgba(196,148,106,0.08)] px-2' : ''}`}
+            >
+              <span className={cur ? 'text-sand' : 'text-muted'}>
+                {cur ? `★ ${label}` : label} ({rules.desc})
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-28 overflow-hidden rounded bg-charcoal">
+                  <div
+                    className="h-full rounded bg-sand"
+                    style={{ width: `${Math.max(25, Math.min(100, widthPct))}%` }}
+                  />
+                </div>
+                <span className="min-w-[90px] text-right font-mono text-[11px] text-sand">
+                  Every {iv.min_days}–{iv.max_days}d
+                </span>
               </div>
-              <span className="min-w-[70px] text-right font-mono text-[11px] text-sand">{freq}</span>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </Card>
 
       <SectionLabel>Weight log</SectionLabel>

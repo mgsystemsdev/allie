@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth import create_token, require_auth, token_expires_at
 from app.config import get_settings
 from app.db import get_db
 from app.schemas import LoginRequest, TokenResponse
-from app.services.care import build_overview, get_animal
+from app.services.care import build_overview, calc_age, get_animal
+from app.services.feeding_rules import feeding_config, recommend_feeding
 
 router = APIRouter(prefix="/api", tags=["core"])
 
@@ -23,6 +24,24 @@ def animal_overview(_: None = Depends(require_auth), db: Session = Depends(get_d
         return build_overview(db)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/feeding/config")
+def get_feeding_config(_: None = Depends(require_auth)) -> dict:
+    return feeding_config()
+
+
+@router.get("/feeding/recommend")
+def get_feeding_recommend(
+    prey: str | None = Query(default=None),
+    _: None = Depends(require_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    animal = get_animal(db)
+    if animal is None:
+        raise HTTPException(status_code=404, detail="No animal")
+    age = calc_age(animal.dob)
+    return recommend_feeding(age["months"], prey)
 
 
 @router.get("/healthz")
