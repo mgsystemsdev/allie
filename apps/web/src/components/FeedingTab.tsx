@@ -116,6 +116,33 @@ export function FeedingTab({
         )}
       </div>
 
+      <SectionLabel>Weight history</SectionLabel>
+      {weights.length === 0 ? (
+        <Empty>No weights logged.</Empty>
+      ) : (
+        <ul className="mb-4 space-y-2">
+          {[...weights].reverse().map((w) => (
+            <li
+              key={w.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-[#2a1a10] px-3 py-2 text-[13px]"
+            >
+              <div className="font-bold text-bone">
+                {w.date} · {w.weight_g}g
+              </div>
+              <BtnSm
+                onClick={async () => {
+                  await api.weights.remove(w.id)
+                  await load()
+                  onChange()
+                }}
+              >
+                ✕
+              </BtnSm>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <SectionLabel>Regurgitation log</SectionLabel>
       <p className="mb-2 text-[12px] text-muted">
         Separate from refusal — regurgitation is a health red flag.
