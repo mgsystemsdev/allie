@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: allie
+      POSTGRES_PASSWORD: allie
+      POSTGRES_DB: allie
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U allie -d allie"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://allie:allie@db:5432/allie
+      APP_PASSWORD: allie
+      APP_SECRET: local-dev-secret
+      WEB_ORIGIN: http://localhost:8080
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,0 +1,10 @@
+# Prefer setting each Railway service Root Directory to apps/api or apps/web.
+# This file is a hint for the API service when the repo root is the project root.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = ["**"]
+
+[deploy]
+startCommand = "sh -c 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT'"

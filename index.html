@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allie — Bredli Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--sand:#C4946A;--ochre:#B5722A;--terracotta:#A0522D;--deep-red:#7B3826;--bone:#F2E8D9;--bone-dark:#E0CEAE;--charcoal:#2C201A;--bark:#3D2B1F;--olive:#6B7C45;--sage:#8FA669;--sky:#5B8FA8;--muted:#9C8068;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#1a0e08;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;padding:24px 12px;font-family:'Lato',sans-serif;}
+.db{width:100%;max-width:820px;background:var(--charcoal);color:var(--bone);border-radius:16px;overflow:hidden;border:1px solid #4a3020;}
+.db-header{background:linear-gradient(135deg,#3D2B1F 0%,#1e1208 100%);border-bottom:1px solid #5a3a22;padding:20px 24px 16px;}
+.db-header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.snake-name{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--bone);line-height:1.1;}
+.snake-species{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;letter-spacing:0.05em;}
+.owner-tag{font-size:13px;color:var(--bone-dark);margin-top:5px;}
+.owner-tag span{color:var(--sand);}
+.status-pill{background:#1a3a20;border:1px solid var(--olive);color:var(--sage);font-size:11px;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.sex-badge{background:#3a1a2a;border:1px solid #7a3a5a;color:#D090B0;font-size:11px;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:20px;margin-top:6px;display:inline-block;}
+.age-counter{display:flex;gap:10px;align-items:stretch;}
+.age-box{background:#2C201A;border:1px solid #5a3a22;border-radius:10px;padding:10px 14px;text-align:center;flex:1;}
+.age-box-val{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--sand);line-height:1;}
+.age-box-label{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:4px;}
+.age-box.dob{flex:2;}
+.age-box.dob .age-box-val{font-size:15px;color:var(--bone-dark);margin-top:2px;font-family:'JetBrains Mono',monospace;font-weight:400;}
+.age-stage-pill{display:inline-block;background:#4a2c14;border:1px solid var(--sand);color:var(--sand);font-size:11px;font-family:'JetBrains Mono',monospace;padding:3px 12px;border-radius:20px;margin-top:10px;}
+.live-clock{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:6px;letter-spacing:0.04em;}
+.tabs{display:flex;gap:0;background:#1e1208;border-bottom:1px solid #4a3020;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.18s;background:none;border-left:none;border-right:none;border-top:none;border-radius:0;}
+.tab:hover{color:var(--bone-dark);}
+.tab.active{color:var(--sand);border-bottom-color:var(--sand);}
+.panel{display:none;padding:20px 24px 28px;}
+.panel.active{display:block;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+@media(max-width:700px){.grid5{grid-template-columns:repeat(3,1fr);}}
+.card{background:#3D2B1F;border:1px solid #5a3a22;border-radius:10px;padding:14px 16px;}
+.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px;font-family:'JetBrains Mono',monospace;}
+.card-value{font-family:'Playfair Display',serif;font-size:22px;color:var(--bone);font-weight:600;}
+.card-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:20px 0 10px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:'';flex:1;height:1px;background:#4a3020;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #4a3020;font-size:13px;}
+.info-row:last-child{border-bottom:none;}
+.info-label{color:var(--muted);}
+.info-val{color:var(--bone);font-weight:400;text-align:right;}
+.info-val.hi{color:var(--sand);font-family:'JetBrains Mono',monospace;}
+.prey-table{width:100%;border-collapse:collapse;margin-top:6px;}
+.prey-table th{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-family:'JetBrains Mono',monospace;padding:6px 10px;text-align:left;border-bottom:1px solid #4a3020;background:#2C201A;}
+.prey-table td{font-size:12px;padding:8px 10px;border-bottom:1px solid #3a2415;color:var(--bone-dark);}
+.prey-table tr:last-child td{border-bottom:none;}
+.prey-table tr.cur td{background:#4a2c14;color:var(--bone);}
+.prey-table tr.cur td:first-child{border-left:3px solid var(--sand);}
+.freq-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.freq-bar-bg{flex:1;height:5px;background:#2C201A;border-radius:3px;overflow:hidden;}
+.freq-bar-fill{height:100%;background:var(--sand);border-radius:3px;}
+.freq-label{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--sand);min-width:52px;text-align:right;}
+.temp-block{display:flex;gap:8px;align-items:stretch;margin-top:8px;}
+.temp-zone{flex:1;padding:12px;border-radius:8px;text-align:center;}
+.temp-zone.hot{background:#5a2010;border:1px solid #8a4020;}
+.temp-zone.warm{background:#3a2a10;border:1px solid #6a4a20;}
+.temp-zone.cool{background:#1a2a3a;border:1px solid #2a4a6a;}
+.temp-zone.night{background:#1a1a2a;border:1px solid #2a2a5a;}
+.tz-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.temp-zone.hot .tz-label{color:#E87A40;}.temp-zone.warm .tz-label{color:#D4A040;}
+.temp-zone.cool .tz-label{color:var(--sky);}.temp-zone.night .tz-label{color:#8888CC;}
+.tz-val{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;}
+.temp-zone.hot .tz-val{color:#F4A070;}.temp-zone.warm .tz-val{color:#E8C080;}
+.temp-zone.cool .tz-val{color:#90C0E8;}.temp-zone.night .tz-val{color:#AAAADD;}
+.tz-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.log-form{background:#2C201A;border:1px solid #4a3020;border-radius:10px;padding:16px;margin-bottom:16px;}
+.log-form-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--sand);font-family:'JetBrains Mono',monospace;margin-bottom:12px;}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.form-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;}
+.form-field label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.form-field input,.form-field select{background:#3D2B1F;border:1px solid #5a3a22;color:var(--bone);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'Lato',sans-serif;outline:none;width:100%;}
+.form-field input:focus,.form-field select:focus{border-color:var(--sand);}
+.form-field select option{background:#3D2B1F;}
+.btn{background:var(--deep-red);color:var(--bone);border:1px solid var(--terracotta);border-radius:7px;padding:8px 18px;font-size:12px;font-weight:700;font-family:'Lato',sans-serif;letter-spacing:0.06em;cursor:pointer;text-transform:uppercase;transition:background 0.15s;}
+.btn:hover{background:var(--terracotta);}
+.btn-sm{padding:4px 10px;font-size:11px;cursor:pointer;border-radius:5px;border:1px solid #5a3a22;background:#4a2a18;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.btn-sm:hover{color:var(--bone);border-color:var(--sand);}
+.log-table{width:100%;border-collapse:collapse;}
+.log-table th{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-family:'JetBrains Mono',monospace;padding:6px 10px;text-align:left;border-bottom:1px solid #4a3020;}
+.log-table td{font-size:12px;padding:8px 10px;border-bottom:1px solid #3a2415;color:var(--bone-dark);vertical-align:middle;}
+.log-table tr:last-child td{border-bottom:none;}
+.accepted{color:var(--sage);font-weight:700;}.refused{color:#E06050;font-weight:700;}
+.empty-state{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+.shed-ring{display:flex;align-items:center;gap:16px;padding:14px 16px;background:#2C201A;border-radius:10px;border:1px solid #4a3020;margin-bottom:10px;}
+.shed-icon{width:44px;height:44px;border-radius:50%;background:#3D2B1F;border:2px solid #6a4a20;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.health-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.health-item{background:#2C201A;border:1px solid #4a3020;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;}
+.health-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.health-dot.good{background:var(--sage);}.health-dot.warn{background:#D4A040;}.health-dot.bad{background:#E06050;}
+.health-item-text{font-size:12px;color:var(--bone-dark);}.health-item-label{font-size:10px;color:var(--muted);}
+.enc-zone{display:flex;height:80px;border-radius:8px;overflow:hidden;border:1px solid #5a3a22;margin-top:10px;}
+.enc-hot{flex:1;background:linear-gradient(to right,#5a2010,#3a2010);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;}
+.enc-mid{flex:1;background:#2a1a0a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;}
+.enc-cool{flex:1;background:linear-gradient(to left,#0a1a2a,#1a1a2a);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;}
+.enc-zone-label{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;font-family:'JetBrains Mono',monospace;}
+.enc-zone-temp{font-size:13px;color:var(--bone-dark);}
+.enc-hot .enc-zone-label{color:#E87A40;}.enc-cool .enc-zone-label{color:var(--sky);}.enc-mid .enc-zone-label{color:var(--muted);}
+.enc-features{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.enc-tag{background:#3D2B1F;border:1px solid #5a3a22;color:var(--muted);font-size:11px;padding:3px 10px;border-radius:12px;font-family:'JetBrains Mono',monospace;}
+.weight-chart-wrap{position:relative;width:100%;height:180px;margin-top:12px;}
+.cur-highlight{background:rgba(196,148,106,0.08);border-radius:6px;padding:8px;}
+@media(max-width:600px){.grid4{grid-template-columns:1fr 1fr;}.age-counter{flex-wrap:wrap;}.age-box.dob{flex:100%;}.health-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="db">
+
+  <div class="db-header">
+    <div class="db-header-top">
+      <div>
+        <div class="snake-name">Allie 🐍</div>
+        <div class="snake-species">Morelia bredli · Centralian Carpet Python</div>
+        <div class="owner-tag">Owner: <span>Miguel Gonzalez</span></div>
+        <div class="sex-badge">♀ Female</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="status-pill">● Active &amp; Healthy</div>
+        <div class="live-clock" id="live-clock"></div>
+      </div>
+    </div>
+
+    <div class="age-counter">
+      <div class="age-box dob">
+        <div class="card-title" style="margin-bottom:4px;">Date of birth</div>
+        <div class="age-box-val">21 August 2025</div>
+      </div>
+      <div class="age-box">
+        <div class="age-box-val" id="age-months">—</div>
+        <div class="age-box-label">Months old</div>
+      </div>
+      <div class="age-box">
+        <div class="age-box-val" id="age-days">—</div>
+        <div class="age-box-label">Extra days</div>
+      </div>
+      <div class="age-box">
+        <div class="age-box-val" id="age-total">—</div>
+        <div class="age-box-label">Total days</div>
+      </div>
+    </div>
+    <div id="stage-wrap" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('feeding',this)">Feeding Log</button>
+    <button class="tab" onclick="switchTab('prey',this)">Prey Guide</button>
+    <button class="tab" onclick="switchTab('habitat',this)">Habitat</button>
+    <button class="tab" onclick="switchTab('health',this)">Health</button>
+    <button class="tab" onclick="switchTab('species',this)">Species Info</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="panel-overview" class="panel active">
+    <div class="grid5">
+      <div class="card"><div class="card-title">Last Fed</div><div class="card-value" id="ov-last-fed">—</div><div class="card-sub" id="ov-days-ago">No feeds logged</div></div>
+      <div class="card" id="ov-next-card"><div class="card-title">Next Feed Due</div><div class="card-value" id="ov-next-fed">—</div><div class="card-sub" id="ov-next-sub">Log a feed first</div></div>
+      <div class="card"><div class="card-title">Total Feeds</div><div class="card-value" id="ov-total-feeds">0</div><div class="card-sub">Recorded</div></div>
+      <div class="card"><div class="card-title">Current Weight</div><div class="card-value" id="ov-weight">—</div><div class="card-sub" id="ov-weight-sub">Not logged</div></div>
+      <div class="card"><div class="card-title">Last Shed</div><div class="card-value" id="ov-last-shed">—</div><div class="card-sub" id="ov-shed-sub">No sheds logged</div></div>
+    </div>
+
+    <div class="section-label">Quick feed log</div>
+    <div class="log-form">
+      <div class="log-form-title">Log a Feed</div>
+      <div class="form-row">
+        <div class="form-field"><label>Date</label><input type="date" id="q-date"></div>
+        <div class="form-field"><label>Prey Type</label>
+          <select id="q-prey">
+            <option>Pinky mouse</option><option>Fuzzy mouse</option>
+            <option selected>Adult mouse</option><option>Small rat</option>
+            <option>Medium rat</option><option>Large rat</option>
+            <option>Day-old chick</option><option>Quail</option><option>Rabbit</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Accepted?</label>
+          <select id="q-accept"><option value="yes">Yes</option><option value="no">Refused</option></select>
+        </div>
+        <div class="form-field" style="min-width:80px;max-width:100px;"><label>Weight (g)</label><input type="number" id="q-weight" placeholder="e.g. 320"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="text" id="q-notes" placeholder="Notes (optional)" style="flex:1;background:#3D2B1F;border:1px solid #5a3a22;color:var(--bone);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'Lato',sans-serif;outline:none;">
+        <button class="btn" onclick="logFeed()">Log Feed</button>
+      </div>
+    </div>
+
+    <div class="section-label">Recent feeding history</div>
+    <table class="log-table">
+      <thead><tr><th>Date</th><th>Prey</th><th>Result</th><th>Weight</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="ov-feed-tbody"><tr><td colspan="6" class="empty-state">No feeds logged yet.</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- FEEDING LOG -->
+  <div id="panel-feeding" class="panel">
+    <div class="section-label">Feeding frequency by life stage</div>
+    <div class="card" style="margin-bottom:12px;">
+      <div class="info-row"><span class="info-label">Hatchling (0–3 mo)</span><div><div class="freq-bar-wrap"><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:100%"></div></div><span class="freq-label">Every 5–7d</span></div></div></div>
+      <div class="info-row cur-highlight"><span class="info-label" style="color:var(--sand);">★ Juvenile (3–12 mo) — Allie's stage</span><div><div class="freq-bar-wrap"><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:75%"></div></div><span class="freq-label">Every 7–10d</span></div></div></div>
+      <div class="info-row"><span class="info-label">Sub-adult (1–3 yr)</span><div><div class="freq-bar-wrap"><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:55%"></div></div><span class="freq-label">Every 10–14d</span></div></div></div>
+      <div class="info-row"><span class="info-label">Adult (3+ yr)</span><div><div class="freq-bar-wrap"><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:35%"></div></div><span class="freq-label">Every 14–21d</span></div></div></div>
+    </div>
+
+    <div class="section-label">Key feeding rules</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">Prey method</span><span class="info-val">Frozen/thawed only (safest)</span></div>
+      <div class="info-row"><span class="info-label">Prey width rule</span><span class="info-val">Match widest point of Allie's body</span></div>
+      <div class="info-row"><span class="info-label">Feed in enclosure?</span><span class="info-val">Yes — minimises stress</span></div>
+      <div class="info-row"><span class="info-label">Handling after feed</span><span class="info-val">Wait 48–72 hrs minimum</span></div>
+      <div class="info-row"><span class="info-label">If refused</span><span class="info-val">Try again in 5–7 days; check temps</span></div>
+      <div class="info-row"><span class="info-label">Thaw method</span><span class="info-val">Room temp or warm water bag — no microwave</span></div>
+      <div class="info-row"><span class="info-label">Prey temp before offering</span><span class="info-val">~38°C / 100°F core</span></div>
+    </div>
+
+    <div class="section-label">Weight log</div>
+    <div class="log-form">
+      <div class="log-form-title">Log Weight</div>
+      <div class="form-row">
+        <div class="form-field"><label>Date</label><input type="date" id="w-date"></div>
+        <div class="form-field"><label>Weight (g)</label><input type="number" id="w-weight" placeholder="e.g. 180"></div>
+        <div class="form-field" style="justify-content:flex-end;padding-top:18px;"><button class="btn" onclick="logWeight()">Save</button></div>
+      </div>
+    </div>
+    <div class="weight-chart-wrap"><canvas id="weightChart" role="img" aria-label="Allie weight over time chart">Weight chart — no data yet.</canvas></div>
+  </div>
+
+  <!-- PREY GUIDE -->
+  <div id="panel-prey" class="panel">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Allie is a <strong style="color:var(--sand);">juvenile (~9 months)</strong>. Her recommended prey row is highlighted. All prey frozen/thawed.</p>
+
+    <div class="section-label">Bird prey — what's applicable for Allie</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="info-row"><span class="info-label" style="color:var(--bone);font-weight:700;">Can Allie eat birds?</span></div>
+      <div style="font-size:13px;color:var(--bone-dark);padding:8px 0 6px;line-height:1.65;">
+        At 9 months, <strong style="color:var(--sand);">day-old chicks</strong> are the only bird-type prey appropriate for Allie, and only as an occasional variety item — not a staple. Quail becomes an option at sub-adult stage (~1.5 kg+). Pigeon/pigeon-sized birds are for large adults only. Birds are high fat, so use sparingly even then.
+      </div>
+      <div class="info-row"><span class="info-label">Day-old chicks</span><span class="info-val" style="color:var(--sage);">Now — occasional variety only</span></div>
+      <div class="info-row"><span class="info-label">Coturnix quail (~130g)</span><span class="info-val">Sub-adult onward (1+ kg)</span></div>
+      <div class="info-row"><span class="info-label">Pigeon / dove</span><span class="info-val">Large adults only (1.5+ kg)</span></div>
+      <div class="info-row"><span class="info-label">Caution</span><span class="info-val">High fat — not a dietary staple</span></div>
+      <div class="info-row"><span class="info-label">Prep</span><span class="info-val">Frozen/thawed plucked birds — feathers cause regurg</span></div>
+    </div>
+
+    <div class="section-label">Full prey size guide — Allie's stage highlighted</div>
+    <table class="prey-table">
+      <thead><tr><th>Life Stage</th><th>Age / Size</th><th>Prey Item</th><th>Prey Weight</th><th>Frequency</th></tr></thead>
+      <tbody>
+        <tr><td>Hatchling</td><td>0–3 mo / &lt;50g</td><td>Pinky → Fuzzy mouse</td><td>3–8g</td><td>Every 5–7 days</td></tr>
+        <tr><td>Young juvenile</td><td>3–6 mo / 50–150g</td><td>Small mouse</td><td>10–18g</td><td>Every 7 days</td></tr>
+        <tr class="cur"><td>Juvenile <span style="color:var(--sand);font-family:'JetBrains Mono',monospace;font-size:10px;">★ Allie</span></td><td>6–12 mo / 150–400g</td><td>Adult mouse / small rat</td><td>20–50g</td><td>Every 7–10 days</td></tr>
+        <tr><td>Sub-adult</td><td>1–2 yr / 400g–1kg</td><td>Small–medium rat</td><td>60–150g</td><td>Every 10–14 days</td></tr>
+        <tr><td>Adult</td><td>2–3+ yr / 1–2.5kg</td><td>Med–large rat / quail</td><td>180–350g</td><td>Every 14–21 days</td></tr>
+        <tr><td>Large adult</td><td>3+ yr / 2+ kg</td><td>Large rat / rabbit / pigeon</td><td>300–500g</td><td>Every 21 days</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:18px;">Sizing rule</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--bone-dark);line-height:1.7;padding:4px 0;">
+        Prey should be no wider than <span style="color:var(--sand);font-weight:700;">1.0–1.5×</span> the widest point of Allie's body. A slight visible lump after feeding is perfect. A large bulge = size down. No lump at all = size up.
+      </div>
+    </div>
+  </div>
+
+  <!-- HABITAT -->
+  <div id="panel-habitat" class="panel">
+    <div class="section-label">Temperature gradient</div>
+    <div class="temp-block">
+      <div class="temp-zone hot"><div class="tz-label">Basking</div><div class="tz-val">90–95°F</div><div class="tz-sub">32–35°C</div></div>
+      <div class="temp-zone warm"><div class="tz-label">Ambient warm</div><div class="tz-val">80–84°F</div><div class="tz-sub">27–29°C</div></div>
+      <div class="temp-zone cool"><div class="tz-label">Cool end</div><div class="tz-val">75–79°F</div><div class="tz-sub">24–26°C</div></div>
+      <div class="temp-zone night"><div class="tz-label">Night drop</div><div class="tz-val">70–74°F</div><div class="tz-sub">21–23°C</div></div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Enclosure layout (top view)</div>
+    <div style="background:#1e1208;border:1px solid #4a3020;border-radius:10px;padding:14px;">
+      <div class="enc-zone">
+        <div class="enc-hot"><div class="enc-zone-label">Hot end</div><div class="enc-zone-temp">Basking + hot hide</div></div>
+        <div class="enc-mid"><div class="enc-zone-label">Midzone</div><div class="enc-zone-temp">Branches / enrichment</div></div>
+        <div class="enc-cool"><div class="enc-zone-label">Cool end</div><div class="enc-zone-temp">Cool hide + water</div></div>
+      </div>
+      <div class="enc-features">
+        <span class="enc-tag">Hot hide</span><span class="enc-tag">Cool hide</span><span class="enc-tag">Climbing branches</span>
+        <span class="enc-tag">Rock features</span><span class="enc-tag">Water bowl</span><span class="enc-tag">Thermometer × 2</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Enclosure size — Allie's current stage</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">Hatchling (0–6 mo)</span><span class="info-val">20–40L tub</span></div>
+      <div class="info-row cur-highlight"><span class="info-label" style="color:var(--sand);">★ Juvenile (6–18 mo) — Allie now</span><span class="info-val hi">3 × 1.5 × 1.5 ft</span></div>
+      <div class="info-row"><span class="info-label">Sub-adult (1–2 yr)</span><span class="info-val">4 × 2 × 2 ft</span></div>
+      <div class="info-row"><span class="info-label">Adult minimum</span><span class="info-val">4 × 2 × 2 ft</span></div>
+      <div class="info-row"><span class="info-label">Adult recommended</span><span class="info-val">6 × 2 × 2 ft+</span></div>
+      <div class="info-row"><span class="info-label">Arboreal space</span><span class="info-val">Height appreciated — add branches</span></div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Humidity &amp; lighting</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">Target humidity</span><span class="info-val hi">40–60%</span></div>
+      <div class="info-row"><span class="info-label">During shed</span><span class="info-val hi">60–70%</span></div>
+      <div class="info-row"><span class="info-label">Photoperiod</span><span class="info-val">12 hrs light / 12 hrs dark</span></div>
+      <div class="info-row"><span class="info-label">UVB</span><span class="info-val">Optional but beneficial (low UV index)</span></div>
+      <div class="info-row"><span class="info-label">Substrate</span><span class="info-val">Sand/soil mix, coco coir, or aspen</span></div>
+      <div class="info-row"><span class="info-label">Substrate depth</span><span class="info-val">5–10 cm</span></div>
+    </div>
+  </div>
+
+  <!-- HEALTH -->
+  <div id="panel-health" class="panel">
+    <div class="section-label">Log a shed</div>
+    <div class="log-form">
+      <div class="log-form-title">Shed Log</div>
+      <div class="form-row">
+        <div class="form-field"><label>Shed Date</label><input type="date" id="shed-date"></div>
+        <div class="form-field"><label>Quality</label>
+          <select id="shed-quality"><option>Complete (one piece)</option><option>Partial (some retained)</option><option>Poor (multiple pieces)</option></select>
+        </div>
+        <div class="form-field"><label>Eyes clear pre-shed?</label>
+          <select id="shed-eyes"><option>Yes</option><option>No — retained eye caps</option></select>
+        </div>
+        <div class="form-field" style="justify-content:flex-end;padding-top:18px;"><button class="btn" onclick="logShed()">Log Shed</button></div>
+      </div>
+    </div>
+    <div id="shed-list"></div>
+
+    <div class="section-label" style="margin-top:8px;">Health indicators</div>
+    <div class="health-grid">
+      <div class="health-item"><div class="health-dot good"></div><div><div class="health-item-text">Clear, alert eyes</div><div class="health-item-label">Eyes — positive sign</div></div></div>
+      <div class="health-item"><div class="health-dot good"></div><div><div class="health-item-text">Clean vent, no swelling</div><div class="health-item-label">Cloaca — check monthly</div></div></div>
+      <div class="health-item"><div class="health-dot good"></div><div><div class="health-item-text">Firm, rounded muscle tone</div><div class="health-item-label">Body condition</div></div></div>
+      <div class="health-item"><div class="health-dot warn"></div><div><div class="health-item-text">Wheezing / mucus</div><div class="health-item-label">Respiratory — see vet</div></div></div>
+      <div class="health-item"><div class="health-dot warn"></div><div><div class="health-item-text">Retained shed / eye caps</div><div class="health-item-label">Raise humidity, add damp hide</div></div></div>
+      <div class="health-item"><div class="health-dot bad"></div><div><div class="health-item-text">Repeated regurgitation</div><div class="health-item-label">Parasites / temps off — vet</div></div></div>
+      <div class="health-item"><div class="health-dot bad"></div><div><div class="health-item-text">Stargazing / wobbling</div><div class="health-item-label">Neurological — vet urgently</div></div></div>
+      <div class="health-item"><div class="health-dot bad"></div><div><div class="health-item-text">Mites — tiny black dots</div><div class="health-item-label">Treat enclosure + snake</div></div></div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Vet visits</div>
+    <div class="log-form">
+      <div class="log-form-title">Log Vet Visit</div>
+      <div class="form-row">
+        <div class="form-field"><label>Date</label><input type="date" id="vet-date"></div>
+        <div class="form-field"><label>Reason</label><input type="text" id="vet-reason" placeholder="e.g. Annual check, mites..."></div>
+        <div class="form-field"><label>Notes</label><input type="text" id="vet-notes" placeholder="Vet's comments..."></div>
+        <div class="form-field" style="justify-content:flex-end;padding-top:18px;"><button class="btn" onclick="logVet()">Save</button></div>
+      </div>
+    </div>
+    <table class="log-table">
+      <thead><tr><th>Date</th><th>Reason</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="vet-tbody"><tr><td colspan="4" class="empty-state">No vet visits logged.</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- SPECIES INFO -->
+  <div id="panel-species" class="panel">
+    <div class="grid2" style="margin-bottom:12px;">
+      <div class="card"><div class="card-title">Scientific name</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--bone);font-style:italic;margin-top:4px;">Morelia bredli</div></div>
+      <div class="card"><div class="card-title">Common names</div><div style="font-size:13px;color:var(--bone-dark);margin-top:4px;">Centralian carpet python, Bredl's python</div></div>
+    </div>
+    <div class="section-label">Key facts</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">Origin</span><span class="info-val">Central Australia — Alice Springs region</span></div>
+      <div class="info-row"><span class="info-label">Habitat</span><span class="info-val">Arid rocky gorges, mulga scrub</span></div>
+      <div class="info-row"><span class="info-label">Adult length</span><span class="info-val">1.8–2.5 m (6–8 ft)</span></div>
+      <div class="info-row"><span class="info-label">Adult weight</span><span class="info-val">1.5–3 kg (3–7 lb)</span></div>
+      <div class="info-row"><span class="info-label">Lifespan (captive)</span><span class="info-val hi">20–30 years</span></div>
+      <div class="info-row"><span class="info-label">Sexual maturity</span><span class="info-val">3–4 years</span></div>
+      <div class="info-row"><span class="info-label">Activity pattern</span><span class="info-val">Primarily nocturnal / crepuscular</span></div>
+      <div class="info-row"><span class="info-label">Temperament</span><span class="info-val">Bold, curious — nippy as hatchling, settles with handling</span></div>
+      <div class="info-row"><span class="info-label">Feeding method</span><span class="info-val">Constriction</span></div>
+      <div class="info-row"><span class="info-label">Conservation status</span><span class="info-val">Least Concern (IUCN)</span></div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Handling tips for Allie</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">Wait before handling</span><span class="info-val">2–4 weeks post-arrival to let her settle</span></div>
+      <div class="info-row"><span class="info-label">After feeding</span><span class="info-val">48–72 hrs minimum — no exceptions</span></div>
+      <div class="info-row"><span class="info-label">Session length</span><span class="info-val">15–30 min max for juveniles</span></div>
+      <div class="info-row"><span class="info-label">Approach direction</span><span class="info-val">From the side, not above (triggers strike reflex)</span></div>
+      <div class="info-row"><span class="info-label">Juvenile nips</span><span class="info-val">Normal — don't recoil suddenly, stay calm</span></div>
+      <div class="info-row"><span class="info-label">Frequency</span><span class="info-val">2–3× per week once settled, builds tameness</span></div>
+    </div>
+
+    <div class="section-label" style="margin-top:18px;">Compared to other pythons</div>
+    <div class="card">
+      <div class="info-row"><span class="info-label">vs. Jungle carpet</span><span class="info-val">Bredli more arid, heavier build, generally calmer</span></div>
+      <div class="info-row"><span class="info-label">vs. Coastal carpet</span><span class="info-val">Similar size — Bredli prefers lower humidity</span></div>
+      <div class="info-row"><span class="info-label">vs. Ball python</span><span class="info-val">Bredli much larger and more active — needs more space</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var DOB = new Date('2025-08-21');
+var feedLog=[], weightLog=[], shedLog=[], vetLog=[];
+try{feedLog=JSON.parse(localStorage.getItem('allie_feeds')||'[]');}catch(e){}
+try{weightLog=JSON.parse(localStorage.getItem('allie_weights')||'[]');}catch(e){}
+try{shedLog=JSON.parse(localStorage.getItem('allie_sheds')||'[]');}catch(e){}
+try{vetLog=JSON.parse(localStorage.getItem('allie_vet')||'[]');}catch(e){}
+var wChart=null;
+
+function save(){
+  try{
+    localStorage.setItem('allie_feeds',JSON.stringify(feedLog));
+    localStorage.setItem('allie_weights',JSON.stringify(weightLog));
+    localStorage.setItem('allie_sheds',JSON.stringify(shedLog));
+    localStorage.setItem('allie_vet',JSON.stringify(vetLog));
+  }catch(e){}
+}
+
+function todayStr(){return new Date().toISOString().slice(0,10);}
+
+function calcAge(now){
+  var y1=DOB.getFullYear(),m1=DOB.getMonth(),d1=DOB.getDate();
+  var y2=now.getFullYear(),m2=now.getMonth(),d2=now.getDate();
+  var months=(y2-y1)*12+(m2-m1);
+  if(d2<d1)months--;
+  var tmp=new Date(DOB);tmp.setMonth(tmp.getMonth()+months);
+  var days=Math.floor((now-tmp)/86400000);
+  var total=Math.floor((now-DOB)/86400000);
+  return{months:months,days:days,total:total};
+}
+
+function stageFromMonths(m){
+  if(m<3)return{label:'Hatchling',desc:'0–3 months'};
+  if(m<12)return{label:'Juvenile',desc:'3–12 months'};
+  if(m<36)return{label:'Sub-adult',desc:'1–3 years'};
+  return{label:'Adult',desc:'3+ years'};
+}
+
+function updateAge(){
+  var now=new Date();
+  var a=calcAge(now);
+  document.getElementById('age-months').textContent=a.months;
+  document.getElementById('age-days').textContent=a.days;
+  document.getElementById('age-total').textContent=a.total;
+  var s=stageFromMonths(a.months);
+  document.getElementById('stage-wrap').innerHTML=
+    '<div class="age-stage-pill">'+s.label+' · '+s.desc+'</div>';
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var hh=String(now.getHours()).padStart(2,'0');
+  var mm=String(now.getMinutes()).padStart(2,'0');
+  var ss=String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('live-clock').textContent=
+    now.getDate()+' '+mo[now.getMonth()]+' '+now.getFullYear()+' · '+hh+':'+mm+':'+ss;
+}
+
+updateAge();
+setInterval(updateAge,1000);
+
+['q-date','w-date','shed-date','vet-date'].forEach(function(id){
+  document.getElementById(id).value=todayStr();
+});
+
+function daysSince(d){return d?Math.floor((new Date()-new Date(d))/86400000):null;}
+
+function switchTab(id,el){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('panel-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id==='feeding')renderWeightChart();
+}
+
+function logFeed(){
+  var date=document.getElementById('q-date').value;
+  var prey=document.getElementById('q-prey').value;
+  var accept=document.getElementById('q-accept').value;
+  var weight=document.getElementById('q-weight').value;
+  var notes=document.getElementById('q-notes').value;
+  if(!date||!prey)return;
+  feedLog.unshift({date:date,prey:prey,accept:accept,weight:weight||'',notes:notes||''});
+  if(weight)weightLog.push({date:date,weight:parseInt(weight)});
+  save();
+  document.getElementById('q-notes').value='';
+  document.getElementById('q-weight').value='';
+  renderFeeds();renderOverview();
+}
+
+function deleteFeed(i){feedLog.splice(i,1);save();renderFeeds();renderOverview();}
+
+function renderFeeds(){
+  var tbody=document.getElementById('ov-feed-tbody');
+  if(!feedLog.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">No feeds logged yet.</td></tr>';return;}
+  tbody.innerHTML=feedLog.map(function(f,i){
+    return'<tr>'+
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11px;">'+f.date+'</td>'+
+      '<td>'+f.prey+'</td>'+
+      '<td class="'+(f.accept==='yes'?'accepted':'refused')+'">'+(f.accept==='yes'?'✓ Accepted':'✗ Refused')+'</td>'+
+      '<td>'+(f.weight?f.weight+'g':'—')+'</td>'+
+      '<td style="color:var(--muted);font-size:11px;">'+(f.notes||'—')+'</td>'+
+      '<td><button class="btn-sm" onclick="deleteFeed('+i+')">✕</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function renderOverview(){
+  var lf=feedLog[0];
+  if(lf){
+    document.getElementById('ov-last-fed').textContent=lf.date;
+    var ds=daysSince(lf.date);
+    document.getElementById('ov-days-ago').textContent=ds===0?'Today':ds+' days ago';
+    // Next feed due — juvenile interval 7–10 days; use 8 as midpoint
+    var dueDate=new Date(lf.date);dueDate.setDate(dueDate.getDate()+8);
+    var daysUntil=Math.ceil((dueDate-new Date())/86400000);
+    var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var dueTxt=dueDate.getDate()+' '+mo[dueDate.getMonth()];
+    var card=document.getElementById('ov-next-card');
+    var nextVal=document.getElementById('ov-next-fed');
+    var nextSub=document.getElementById('ov-next-sub');
+    nextVal.textContent=dueTxt;
+    if(daysUntil<0){
+      nextSub.textContent='Overdue by '+Math.abs(daysUntil)+'d';
+      card.style.borderColor='#E06050';nextVal.style.color='#E06050';
+    }else if(daysUntil===0){
+      nextSub.textContent='Due today!';
+      card.style.borderColor='#D4A040';nextVal.style.color='#D4A040';
+    }else if(daysUntil<=2){
+      nextSub.textContent='In '+daysUntil+' day'+(daysUntil===1?'':'s');
+      card.style.borderColor='#D4A040';nextVal.style.color='#D4A040';
+    }else{
+      nextSub.textContent='In '+daysUntil+' days';
+      card.style.borderColor='';nextVal.style.color='';
+    }
+  }
+  document.getElementById('ov-total-feeds').textContent=feedLog.length;
+  var lw=weightLog.length?weightLog[weightLog.length-1]:null;
+  if(lw){document.getElementById('ov-weight').textContent=lw.weight+'g';document.getElementById('ov-weight-sub').textContent=lw.date;}
+  var ls=shedLog[0];
+  if(ls){document.getElementById('ov-last-shed').textContent=ls.date;document.getElementById('ov-shed-sub').textContent=daysSince(ls.date)+' days ago';}
+}
+
+function logWeight(){
+  var date=document.getElementById('w-date').value;
+  var weight=parseInt(document.getElementById('w-weight').value);
+  if(!date||!weight)return;
+  weightLog.push({date:date,weight:weight});
+  save();document.getElementById('w-weight').value='';
+  renderOverview();renderWeightChart();
+}
+
+function renderWeightChart(){
+  var ctx=document.getElementById('weightChart');
+  if(!ctx)return;
+  if(wChart){wChart.destroy();wChart=null;}
+  if(!weightLog.length)return;
+  var sorted=weightLog.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  wChart=new Chart(ctx,{
+    type:'line',
+    data:{labels:sorted.map(function(w){return w.date;}),
+      datasets:[{label:'Weight (g)',data:sorted.map(function(w){return w.weight;}),
+        borderColor:'#C4946A',backgroundColor:'rgba(196,148,106,0.15)',
+        pointBackgroundColor:'#C4946A',tension:0.3,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#9C8068',font:{size:11}},grid:{color:'rgba(90,58,34,0.4)'}},
+        y:{ticks:{color:'#9C8068',font:{size:11}},grid:{color:'rgba(90,58,34,0.4)'}}
+      }}
+  });
+}
+
+function logShed(){
+  var date=document.getElementById('shed-date').value;
+  var quality=document.getElementById('shed-quality').value;
+  var eyes=document.getElementById('shed-eyes').value;
+  if(!date)return;
+  shedLog.unshift({date:date,quality:quality,eyes:eyes});
+  save();renderSheds();renderOverview();
+}
+
+function renderSheds(){
+  var el=document.getElementById('shed-list');
+  if(!shedLog.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="section-label">Shed history</div>'+
+    shedLog.map(function(s,i){
+      return'<div class="shed-ring">'+
+        '<div class="shed-icon">🐍</div>'+
+        '<div style="flex:1;"><div style="font-size:13px;color:var(--bone);font-weight:700;">'+s.date+'</div>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+s.quality+' · Eyes: '+s.eyes+'</div></div>'+
+        '<button class="btn-sm" onclick="deleteShed('+i+')">✕</button></div>';
+    }).join('');
+}
+
+function deleteShed(i){shedLog.splice(i,1);save();renderSheds();renderOverview();}
+
+function logVet(){
+  var date=document.getElementById('vet-date').value;
+  var reason=document.getElementById('vet-reason').value;
+  var notes=document.getElementById('vet-notes').value;
+  if(!date||!reason)return;
+  vetLog.unshift({date:date,reason:reason,notes:notes||''});
+  save();document.getElementById('vet-reason').value='';document.getElementById('vet-notes').value='';
+  renderVet();
+}
+
+function renderVet(){
+  var tbody=document.getElementById('vet-tbody');
+  if(!vetLog.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">No vet visits logged.</td></tr>';return;}
+  tbody.innerHTML=vetLog.map(function(v,i){
+    return'<tr>'+
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11px;">'+v.date+'</td>'+
+      '<td>'+v.reason+'</td>'+
+      '<td style="color:var(--muted);font-size:12px;">'+(v.notes||'—')+'</td>'+
+      '<td><button class="btn-sm" onclick="deleteVet('+i+')">✕</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function deleteVet(i){vetLog.splice(i,1);save();renderVet();}
+
+renderFeeds();renderOverview();renderSheds();renderVet();
+</script>
+</body>
+</html>
