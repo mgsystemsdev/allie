@@ -386,7 +386,7 @@ ${dig.html}
             }
           }}
         >
-          Send test digest
+          Send test digest (push email)
         </Btn>
       </div>
       {saveMsg && <p className="mb-2 font-mono text-[11px] text-sand">{saveMsg}</p>}

@@ -40,7 +40,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'photos', label: 'Photos' },
   { id: 'species', label: 'Species Info' },
   { id: 'settings', label: 'Settings' },
-  { id: 'local', label: 'Local' },
+  // Local tools only while developing — hidden in Railway production builds
+  ...(import.meta.env.DEV ? [{ id: 'local' as const, label: 'Local' }] : []),
 ]
 
 function Login({ onOk }: { onOk: () => void }) {
@@ -298,7 +299,7 @@ export default function App() {
             }}
           />
         )}
-        {tab === 'local' && <LocalTab />}
+        {import.meta.env.DEV && tab === 'local' && <LocalTab />}
       </main>
     </div>
   )
