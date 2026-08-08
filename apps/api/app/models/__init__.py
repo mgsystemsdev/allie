@@ -256,7 +256,7 @@ class AppSettings(Base):
 
     event_handle_cleared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     event_feed_overdue: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    event_handling_gap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    event_handling_gap: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     event_shed_status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     event_regurg: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     event_maint_water: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

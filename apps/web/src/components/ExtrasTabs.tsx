@@ -363,7 +363,7 @@ ${dig.html}
           onChange={(v) => patch('event_feed_overdue', v)}
         />
         <Toggle
-          label="3. Handling gap exceeded"
+          label="3. Handling gap exceeded (optional — off by default)"
           checked={s.event_handling_gap}
           onChange={(v) => patch('event_handling_gap', v)}
         />
@@ -419,7 +419,7 @@ ${dig.html}
             }
           }}
         >
-          Send test digest (push email)
+          Send today’s digest
         </Btn>
       </div>
       {saveMsg && <p className="mb-2 font-mono text-[11px] text-sand">{saveMsg}</p>}

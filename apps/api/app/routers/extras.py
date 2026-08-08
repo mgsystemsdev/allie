@@ -44,6 +44,7 @@ from app.schemas import (
     TreatmentOut,
 )
 from app.services.care import get_animal
+from app.services.scheduler import request_reschedule
 
 router = APIRouter(prefix="/api", tags=["extras"], dependencies=[Depends(require_auth)])
 
@@ -82,6 +83,7 @@ def create_maint(body: MaintenanceCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.commit()
     db.refresh(row)
+    request_reschedule()
     return MaintenanceOut(id=row.id, animal_id=row.animal_id, date=row.date, kind=row.kind.value, notes=row.notes)
 
 
@@ -93,6 +95,7 @@ def delete_maint(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Not found")
     db.delete(row)
     db.commit()
+    request_reschedule()
     return {"ok": True}
 
 

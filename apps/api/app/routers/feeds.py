@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models import Feed, Weight
 from app.schemas import FeedCreate, FeedOut, WeightCreate, WeightOut
 from app.services.care import get_animal
+from app.services.scheduler import request_reschedule
 
 router = APIRouter(prefix="/api", tags=["feeds"], dependencies=[Depends(require_auth)])
 
@@ -42,6 +43,7 @@ def create_feed(body: FeedCreate, db: Session = Depends(get_db)):
         db.add(Weight(animal_id=aid, date=body.date, weight_g=body.snake_weight_g))
     db.commit()
     db.refresh(feed)
+    request_reschedule()
     return feed
 
 
@@ -53,6 +55,7 @@ def delete_feed(feed_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Feed not found")
     db.delete(feed)
     db.commit()
+    request_reschedule()
     return {"ok": True}
 
 
@@ -70,6 +73,7 @@ def create_weight(body: WeightCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.commit()
     db.refresh(row)
+    request_reschedule()
     return row
 
 
@@ -81,4 +85,5 @@ def delete_weight(weight_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Weight not found")
     db.delete(row)
     db.commit()
+    request_reschedule()
     return {"ok": True}

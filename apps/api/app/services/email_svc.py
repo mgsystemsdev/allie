@@ -225,96 +225,132 @@ def send_event_email(db: Session, kind: str, subject: str, body: str, dedupe_key
     return result
 
 
+def fire_handle_cleared(db: Session) -> dict[str, Any]:
+    overview = build_overview(db)
+    handle = overview["clear_to_handle"]
+    last_feed = overview.get("last_feed")
+    if not handle.get("ready"):
+        return {"ok": False, "skipped": "not_ready"}
+    if not last_feed or not last_feed.get("accepted"):
+        return {"ok": False, "skipped": "no_accepted_feed"}
+    if not handle.get("clear_at"):
+        return {"ok": False, "skipped": "no_timer"}
+    name = overview.get("name", "Allie")
+    return send_event_email(
+        db,
+        "handle_cleared",
+        f"{name}: clear to handle",
+        "It is now clear to handle — post-feed wait is over.",
+        f"handle_cleared:feed-{last_feed['id']}",
+    )
+
+
+def fire_feed_overdue(db: Session) -> dict[str, Any]:
+    overview = build_overview(db)
+    feed = overview.get("next_feed")
+    if not feed or feed.get("days_until", 0) >= 0:
+        return {"ok": False, "skipped": "not_overdue"}
+    name = overview.get("name", "Allie")
+    return send_event_email(
+        db,
+        "feed_overdue",
+        f"{name}: feed overdue",
+        f"Next feed was due {feed['due_date']} — {feed['countdown']}.",
+        f"feed_overdue:{feed['due_date']}",
+    )
+
+
+def fire_handling_gap(db: Session) -> dict[str, Any]:
+    overview = build_overview(db)
+    gap = overview.get("handling_gap")
+    handle = overview["clear_to_handle"]
+    if not gap or not gap.get("overdue") or not handle.get("ready"):
+        return {"ok": False, "skipped": "not_due"}
+    name = overview.get("name", "Allie")
+    return send_event_email(
+        db,
+        "handling_gap",
+        f"{name}: handling due",
+        gap["countdown"] + " — and it is clear to handle.",
+        f"handling_gap:{date.today().isoformat()}",
+    )
+
+
+def fire_maint_due(db: Session, kind: str) -> dict[str, Any]:
+    overview = build_overview(db)
+    item = next((i for i in (overview.get("maintenance_items") or []) if i["kind"] == kind), None)
+    if item is None:
+        return {"ok": False, "skipped": "unknown_kind"}
+    if not item.get("overdue") and not item.get("due_today"):
+        return {"ok": False, "skipped": "not_due"}
+    name = overview.get("name", "Allie")
+    status = "overdue" if item.get("overdue") else "due today"
+    event_kind = f"maint_{kind}"
+    return send_event_email(
+        db,
+        event_kind,
+        f"{name}: {item['label']} {status}",
+        f"{item['label']} is {status} (due {item['due_date']}). "
+        f"Interval every {item['interval_days']}d · last logged {item['last_date'] or 'never'}.",
+        f"{event_kind}:{item['due_date']}",
+    )
+
+
+def fire_weight_due(db: Session) -> dict[str, Any]:
+    overview = build_overview(db)
+    weight = overview.get("weight_due")
+    if not weight or not weight.get("due"):
+        return {"ok": False, "skipped": "not_due"}
+    name = overview.get("name", "Allie")
+    return send_event_email(
+        db,
+        "weight_due",
+        f"{name}: weight log due",
+        weight["countdown"]
+        + f" (every {weight['interval_days']}d · last {weight['last_date'] or 'never'}).",
+        f"weight_due:{weight['due_date']}",
+    )
+
+
 def evaluate_time_events(db: Session) -> list[dict[str, Any]]:
-    """Handle cleared, feed overdue, handling gap, maintenance, weight — called from tick."""
+    """Backup path (manual tick): fire any currently due one-shots. Deduped."""
     cfg = get_or_create_settings(db)
     if not cfg.email_enabled:
         return []
     results: list[dict[str, Any]] = []
     overview = build_overview(db)
-    today = date.today().isoformat()
-    name = overview.get("name", "Allie")
 
-    # Feed overdue
     feed = overview.get("next_feed")
     if cfg.event_feed_overdue and feed and feed["days_until"] < 0:
-        key = f"feed_overdue:{today}"
-        results.append(
-            send_event_email(
-                db,
-                "feed_overdue",
-                f"{name}: feed overdue",
-                f"Next feed was due {feed['due_date']} — {feed['countdown']}.",
-                key,
-            )
-        )
+        results.append(fire_feed_overdue(db))
 
-    # Handle cleared — dedupe per day when ready after having waited
     handle = overview["clear_to_handle"]
-    if cfg.event_handle_cleared and handle["ready"] and handle.get("hours_since_feed") is not None:
-        # Only fire if we recently crossed the threshold (within ~2 hours of clear)
-        hours = handle["hours_since_feed"]
-        clear_h = handle["clear_after_hours"]
-        if clear_h <= hours < clear_h + 2:
-            last_feed = overview.get("last_feed")
-            fid = last_feed["id"] if last_feed else "none"
-            key = f"handle_cleared:feed-{fid}"
-            results.append(
-                send_event_email(
-                    db,
-                    "handle_cleared",
-                    f"{name}: clear to handle",
-                    "It is now clear to handle — post-feed wait is over.",
-                    key,
-                )
-            )
+    last_feed = overview.get("last_feed")
+    if (
+        cfg.event_handle_cleared
+        and handle.get("ready")
+        and handle.get("clear_at")
+        and last_feed
+        and last_feed.get("accepted")
+    ):
+        results.append(fire_handle_cleared(db))
 
-    # Handling gap
     gap = overview.get("handling_gap")
-    if cfg.event_handling_gap and gap and gap.get("overdue") and handle["ready"]:
-        key = f"handling_gap:{today}"
-        results.append(
-            send_event_email(
-                db,
-                "handling_gap",
-                f"{name}: handling due",
-                gap["countdown"] + " — and it is clear to handle.",
-                key,
-            )
-        )
+    if cfg.event_handling_gap and gap and gap.get("overdue") and handle.get("ready"):
+        results.append(fire_handling_gap(db))
 
-    # Maintenance overdue/due (water / sub tray / deep clean) — one-shot per kind per due_date
     for item in overview.get("maintenance_items") or []:
-        if not item.get("overdue") and not item.get("due_today"):
-            continue
-        event_kind = f"maint_{item['kind']}"
-        key = f"{event_kind}:{item['due_date']}"
-        status = "overdue" if item.get("overdue") else "due today"
-        results.append(
-            send_event_email(
-                db,
-                event_kind,
-                f"{name}: {item['label']} {status}",
-                f"{item['label']} is {status} (due {item['due_date']}). "
-                f"Interval every {item['interval_days']}d · last logged {item['last_date'] or 'never'}.",
-                key,
-            )
-        )
+        toggle = {
+            "water": cfg.event_maint_water,
+            "substrate": cfg.event_maint_substrate,
+            "deep_clean": cfg.event_maint_deep_clean,
+        }.get(item["kind"], True)
+        if toggle and (item.get("overdue") or item.get("due_today")):
+            results.append(fire_maint_due(db, item["kind"]))
 
-    # Weight log due
     weight = overview.get("weight_due")
-    if weight and weight.get("due"):
-        key = f"weight_due:{weight['due_date']}"
-        results.append(
-            send_event_email(
-                db,
-                "weight_due",
-                f"{name}: weight log due",
-                weight["countdown"]
-                + f" (every {weight['interval_days']}d · last {weight['last_date'] or 'never'}).",
-                key,
-            )
-        )
+    if cfg.event_weight_due and weight and weight.get("due"):
+        results.append(fire_weight_due(db))
 
     return results
 
@@ -347,6 +383,24 @@ def notify_regurg(db: Session, regurg_id: int, notes: str) -> dict[str, Any]:
 
 
 def run_tick(db: Session) -> dict[str, Any]:
-    digest = send_digest(db)
+    """Optional backup poke — digests use a 5-minute after-window; events fire if due."""
+    cfg = get_or_create_settings(db)
+    now = local_now(cfg)
+    hhmm = now.strftime("%H:%M")
+    digest: dict[str, Any] = {"ok": False, "skipped": "not_digest_time", "now": hhmm}
+
+    def _past_within(target: str, window_min: int = 5) -> bool:
+        try:
+            th, tm = [int(x) for x in target[:5].split(":")]
+            delta = (now.hour * 60 + now.minute) - (th * 60 + tm)
+            return 0 <= delta <= window_min
+        except Exception:
+            return False
+
+    if _past_within(cfg.digest_time_1):
+        digest = send_digest(db, slot="am")
+    elif cfg.digest_second_enabled and _past_within(cfg.digest_time_2):
+        digest = send_digest(db, slot="pm")
+
     events = evaluate_time_events(db)
-    return {"digest": digest, "events": events}
+    return {"digest": digest, "events": events, "scheduler": "in-process"}

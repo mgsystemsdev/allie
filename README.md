@@ -34,24 +34,21 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Email digests + cron
+### Email digests + in-process scheduler
 
 Settings in the app control destination email, timezone, digest times, care intervals, and which event emails fire.
 
-Secrets stay in env: `RESEND_API_KEY`, `RESEND_FROM`, `CRON_SECRET`.
+Secrets stay in env: `RESEND_API_KEY`, `RESEND_FROM`.
 
-Every minute, hit the tick endpoint (local loop or Railway cron):
+The API starts an **in-process scheduler** on boot (no Railway cron required):
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/internal/tick \
-  -H "X-Cron-Secret: $CRON_SECRET"
-```
+- Digests fire at your Settings digest times (America/Chicago by default)
+- Due timers (clear-to-handle, feed/water/sub tray/deep clean/weight) arm from care logs and re-arm when you log something
+- Shed blue/opaque and regurg emails fire immediately on write
 
-- Digests send when local time matches Settings digest times (default 08:00 and 20:00 America/Chicago)
-- Tick also evaluates handle-cleared / feed-overdue / handling-gap events
-- Shed blue/opaque and regurg emails fire on write
+Optional backup (manual): `POST /api/internal/tick` with `X-Cron-Secret` still works.
 
-Use **Settings → Send test digest** after setting `RESEND_API_KEY` and destination email.
+Use **Settings → Send today’s digest** after setting `RESEND_API_KEY` and destination email.
 
 ### 3. Web
 
@@ -85,9 +82,9 @@ docker compose up --build
      - `UPLOAD_DIR=/data/uploads`
      - `RESEND_API_KEY`
      - `RESEND_FROM`
-     - `CRON_SECRET`
+     - `CRON_SECRET` (optional — only if you still use `/api/internal/tick`)
    - Attach a **volume** at `/data`
-   - Add a **cron** (every minute) to `POST /api/internal/tick` with header `X-Cron-Secret`
+   - Digests and due emails run via the **in-process scheduler** (no cron job required)
 3. Create service **web** from `apps/web/Dockerfile`:
    - Build arg / env `VITE_API_URL` = public API URL (no trailing slash)
 4. After deploy, log in and use **Settings → Import** to migrate old `localStorage` data if needed.

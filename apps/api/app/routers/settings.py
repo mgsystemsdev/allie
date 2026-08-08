@@ -7,6 +7,7 @@ from app.db import get_db
 from app.schemas import AppSettingsUpdate
 from app.services.email_svc import preview_digest, run_tick, send_digest
 from app.services.settings_svc import get_or_create_settings, settings_to_dict, update_settings
+from app.services.scheduler import request_reschedule
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -24,6 +25,7 @@ def put_settings(
 ):
     data = body.model_dump(exclude_unset=True)
     row = update_settings(db, data)
+    request_reschedule()
     return settings_to_dict(row)
 
 

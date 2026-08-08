@@ -31,6 +31,7 @@ from app.schemas import (
     VetVisitOut,
 )
 from app.services.care import get_animal
+from app.services.scheduler import request_reschedule
 
 router = APIRouter(prefix="/api", tags=["care"], dependencies=[Depends(require_auth)])
 
@@ -74,6 +75,7 @@ def create_regurg(body: RegurgitationCreate, db: Session = Depends(get_db)):
         notify_regurg(db, row.id, row.notes)
     except Exception:
         pass
+    request_reschedule()
     return row
 
 
@@ -127,6 +129,7 @@ def create_handling(body: HandlingCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.commit()
     db.refresh(row)
+    request_reschedule()
     return HandlingOut(
         id=row.id,
         animal_id=row.animal_id,
@@ -145,6 +148,7 @@ def delete_handling(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Not found")
     db.delete(row)
     db.commit()
+    request_reschedule()
     return {"ok": True}
 
 
@@ -197,6 +201,7 @@ def create_shed(body: ShedCycleCreate, db: Session = Depends(get_db)):
         notify_shed_status(db, row.status.value, row.id)
     except Exception:
         pass
+    request_reschedule()
     return ShedCycleOut(
         id=row.id,
         animal_id=row.animal_id,
@@ -236,6 +241,7 @@ def update_shed(item_id: int, body: ShedCycleUpdate, db: Session = Depends(get_d
         notify_shed_status(db, row.status.value, row.id)
     except Exception:
         pass
+    request_reschedule()
     return ShedCycleOut(
         id=row.id,
         animal_id=row.animal_id,

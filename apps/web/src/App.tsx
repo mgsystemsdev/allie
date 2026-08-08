@@ -211,8 +211,9 @@ export default function App() {
                   : 'border-border-hi'
             }`}
           >
+            <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Next feed</div>
             <div
-              className={`font-display text-[18px] font-bold leading-none ${
+              className={`font-display text-[16px] font-bold leading-tight ${
                 animal.next_feed && animal.next_feed.days_until < 0
                   ? 'text-[#E06050]'
                   : animal.next_feed && animal.next_feed.days_until <= 2
@@ -220,16 +221,17 @@ export default function App() {
                     : 'text-sand'
               }`}
             >
-              {animal.next_feed?.due_date?.slice(5) || '—'}
-            </div>
-            <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Next feed</div>
-            <div className="mt-0.5 text-[10px] text-muted">
               {animal.next_feed
                 ? animal.next_feed.days_until < 0
                   ? `${Math.abs(animal.next_feed.days_until)}d overdue`
                   : animal.next_feed.days_until === 0
-                    ? `Due today · aim ${animal.feeding_recommendation.feeding_interval.min_days}–${animal.feeding_recommendation.feeding_interval.max_days}d`
-                    : `In ${animal.next_feed.days_until}d · aim ${animal.feeding_recommendation.feeding_interval.min_days}–${animal.feeding_recommendation.feeding_interval.max_days}d`
+                    ? 'Due today'
+                    : `In ${animal.next_feed.days_until}d`
+                : '—'}
+            </div>
+            <div className="mt-0.5 text-[10px] text-muted">
+              {animal.next_feed
+                ? `aim ${animal.feeding_recommendation.feeding_interval.min_days}–${animal.feeding_recommendation.feeding_interval.max_days}d`
                 : 'Log a feed'}
             </div>
           </div>

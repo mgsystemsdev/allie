@@ -21,7 +21,7 @@ DEFAULTS = {
     "feed_interval_days": None,
     "event_handle_cleared": True,
     "event_feed_overdue": True,
-    "event_handling_gap": True,
+    "event_handling_gap": False,
     "event_shed_status": True,
     "event_regurg": True,
     "event_maint_water": True,
