@@ -93,6 +93,18 @@ function formatDob(iso: string) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+/** Days until next birthday (0 = today). */
+function daysUntilBirthday(dobIso: string): number {
+  const dob = new Date(dobIso + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  let next = new Date(today.getFullYear(), dob.getMonth(), dob.getDate())
+  if (next < today) {
+    next = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate())
+  }
+  return Math.round((next.getTime() - today.getTime()) / 86400000)
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(!!getToken())
   const [tab, setTab] = useState<TabId>('overview')
@@ -158,6 +170,8 @@ export default function App() {
     )
   }
 
+  const bdayIn = daysUntilBirthday(animal.dob)
+
   return (
     <div className="w-full max-w-[1100px] overflow-hidden rounded-2xl border border-border bg-charcoal text-bone">
       <header className="border-b border-border-hi bg-gradient-to-br from-bark to-[#1e1208] px-6 pb-4 pt-5">
@@ -201,6 +215,13 @@ export default function App() {
           <div className="min-w-[72px] flex-1 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center">
             <div className="font-display text-[26px] font-bold leading-none text-sand">{animal.age.months}</div>
             <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Months old</div>
+            <div
+              className={`mt-1 font-display text-[18px] font-bold leading-none ${
+                bdayIn === 0 ? 'text-[#D4A040]' : 'text-sand'
+              }`}
+            >
+              {bdayIn === 0 ? 'Birthday today' : `In ${bdayIn}d`}
+            </div>
           </div>
           <div
             className={`min-w-[90px] flex-1 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center ${
