@@ -224,12 +224,12 @@ export default function App() {
             </div>
             <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Next feed</div>
             <div
-              className={`mt-1 font-mono text-[13px] font-medium ${
+              className={`mt-1 font-display text-[18px] font-bold leading-none ${
                 animal.next_feed && animal.next_feed.days_until < 0
                   ? 'text-[#E06050]'
                   : animal.next_feed && animal.next_feed.days_until <= 2
                     ? 'text-[#D4A040]'
-                    : 'text-bone-dark'
+                    : 'text-sand'
               }`}
             >
               {animal.next_feed
