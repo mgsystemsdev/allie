@@ -223,7 +223,15 @@ export default function App() {
               {animal.next_feed?.due_date?.slice(5) || '—'}
             </div>
             <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Next feed</div>
-            <div className="mt-0.5 text-[10px] text-muted">
+            <div
+              className={`mt-1 font-mono text-[13px] font-medium ${
+                animal.next_feed && animal.next_feed.days_until < 0
+                  ? 'text-[#E06050]'
+                  : animal.next_feed && animal.next_feed.days_until <= 2
+                    ? 'text-[#D4A040]'
+                    : 'text-bone-dark'
+              }`}
+            >
               {animal.next_feed
                 ? animal.next_feed.days_until < 0
                   ? `${Math.abs(animal.next_feed.days_until)}d overdue`
