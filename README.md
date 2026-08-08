@@ -60,6 +60,16 @@ npm run dev
 
 Open http://localhost:5173 — password defaults to `allie`.
 
+### Mobile (PWA)
+
+The web app is installable as a home-screen app (same React build):
+
+1. Deploy or open over **HTTPS** (or `localhost` for testing).
+2. **iPhone:** Safari → Share → **Add to Home Screen**.
+3. **Android:** Chrome → menu → **Install app** / **Add to Home screen**.
+
+Opens fullscreen (`standalone`) with offline shell caching. API calls still need network. Push notifications can be added later.
+
 ### Full stack via Docker
 
 ```bash

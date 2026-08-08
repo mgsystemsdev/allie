@@ -51,7 +51,7 @@ function Login({ onOk }: { onOk: () => void }) {
   const [busy, setBusy] = useState(false)
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-charcoal p-8">
+    <div className="w-full max-w-md rounded-none border-0 bg-charcoal p-6 sm:rounded-2xl sm:border sm:border-border sm:p-8">
       <h1 className="font-display text-3xl font-bold text-bone">Allie</h1>
       <p className="mt-1 font-mono text-[11px] tracking-wide text-muted">Bredli Care Dashboard</p>
       <form
@@ -164,7 +164,7 @@ export default function App() {
 
   if (!animal) {
     return (
-      <div className="w-full max-w-[1100px] rounded-2xl border border-border bg-charcoal p-8 text-muted">
+      <div className="w-full max-w-[1100px] bg-charcoal p-8 text-muted sm:rounded-2xl sm:border sm:border-border">
         {error || 'Loading…'}
       </div>
     )
@@ -173,11 +173,11 @@ export default function App() {
   const bdayIn = daysUntilBirthday(animal.dob)
 
   return (
-    <div className="w-full max-w-[1100px] overflow-hidden rounded-2xl border border-border bg-charcoal text-bone">
-      <header className="border-b border-border-hi bg-gradient-to-br from-bark to-[#1e1208] px-6 pb-4 pt-5">
+    <div className="w-full max-w-[1100px] overflow-hidden bg-charcoal text-bone sm:rounded-2xl sm:border sm:border-border">
+      <header className="border-b border-border-hi bg-gradient-to-br from-bark to-[#1e1208] px-4 pb-4 pt-4 sm:px-6 sm:pt-5">
         <div className="mb-3.5 flex items-start justify-between gap-3">
           <div>
-            <div className="font-display text-[28px] font-bold leading-tight text-bone">{animal.name}</div>
+            <div className="font-display text-[24px] font-bold leading-tight text-bone sm:text-[28px]">{animal.name}</div>
             <div className="mt-0.5 font-mono text-[11px] tracking-wide text-muted">
               {animal.species} · {animal.common_name}
             </div>
@@ -207,8 +207,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
-          <div className="min-w-[140px] flex-[2] rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
+          <div className="col-span-2 min-w-0 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center sm:min-w-[140px] sm:flex-[2]">
             <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted">Date of birth</div>
             <div className="font-mono text-[14px] text-bone-dark">{formatDob(animal.dob)}</div>
             <div
@@ -222,7 +222,7 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-[90px] flex-1 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center ${
+            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
               animal.next_feed && animal.next_feed.days_until < 0
                 ? 'border-[#E06050]'
                 : animal.next_feed && animal.next_feed.days_until <= 2
@@ -261,7 +261,7 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-[90px] flex-1 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center ${
+            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
               animal.next_maintenance && animal.next_maintenance.days_until < 0
                 ? 'border-[#E06050]'
                 : animal.next_maintenance && animal.next_maintenance.days_until <= 1
@@ -292,7 +292,7 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-[90px] flex-1 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center ${
+            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
               animal.handling_gap.overdue ? 'border-[#D4A040]' : 'border-border-hi'
             }`}
           >
@@ -314,7 +314,7 @@ export default function App() {
                     : `${animal.handling_gap.days_since}d ago`}
             </div>
           </div>
-          <div className="min-w-[90px] flex-1 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center">
+          <div className="min-w-0 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1">
             <div className="font-display text-[18px] font-bold leading-none text-sand">
               {animal.last_shed?.date?.slice(5) || '—'}
             </div>
@@ -329,13 +329,13 @@ export default function App() {
         </div>
       </header>
 
-      <nav className="flex gap-0 overflow-x-auto border-b border-border bg-[#1e1208] scrollbar-none">
+      <nav className="sticky top-0 z-10 flex gap-0 overflow-x-auto border-b border-border bg-[#1e1208] scrollbar-none [-webkit-overflow-scrolling:touch]">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-xs font-bold uppercase tracking-[0.08em] transition ${
+            className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] transition sm:px-4 sm:py-2.5 sm:text-xs ${
               tab === t.id
                 ? 'border-sand text-sand'
                 : 'border-transparent text-muted hover:text-bone-dark'
@@ -346,7 +346,7 @@ export default function App() {
         ))}
       </nav>
 
-      <main className="px-6 pb-7 pt-5">
+      <main className="px-4 pb-8 pt-4 sm:px-6 sm:pb-7 sm:pt-5">
         {tab === 'overview' && <OverviewTab animal={animal} feeds={feeds} onChange={refresh} />}
         {tab === 'feeding' && <FeedingTab animal={animal} onChange={refresh} />}
         {tab === 'handling' && <HandlingTab animal={animal} onChange={refresh} />}
