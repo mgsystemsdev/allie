@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -30,6 +30,8 @@ from app.services.intelligence import (
 from app.services.settings_svc import get_or_create_settings
 
 HANDLE_CLEAR_HOURS = 72  # default fallback
+# Backdated feeds (date ≠ today): timer starts at this local wall time on feed.date
+BACKDATED_FEED_TIMER_TIME = time(22, 0)  # 10:00 PM
 
 MAINTENANCE_LABELS: dict[MaintenanceKind, str] = {
     MaintenanceKind.water: "Water",
@@ -202,15 +204,46 @@ def format_duration(seconds: float) -> str:
     return " ".join(parts)
 
 
+def resolve_handle_timer_start(
+    feed: Feed,
+    now: datetime,
+    tz: ZoneInfo,
+) -> datetime:
+    """Timer start for post-feed handle wait.
+
+    - Feed date is today (local): use created_at (live log time).
+    - Feed date is any earlier day: 10:00 PM local on that feed date.
+    """
+    local_today = now.astimezone(tz).date()
+    if feed.date == local_today:
+        started = feed.created_at
+        if started is None:
+            return now
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=ZoneInfo("UTC"))
+        return started
+
+    return datetime.combine(feed.date, BACKDATED_FEED_TIMER_TIME, tzinfo=tz)
+
+
 def compute_clear_to_handle(
     last_feed: Feed | None,
     handle_hours: int,
     now: datetime | None = None,
+    tz: ZoneInfo | str | None = None,
 ) -> dict[str, Any]:
-    """72h (configurable) post-feed wait. Timer starts at feed.created_at."""
-    now = now or datetime.now(tz=ZoneInfo("UTC"))
+    """Post-feed wait. Today → created_at; earlier date → 10pm local on feed.date."""
+    if isinstance(tz, str):
+        try:
+            tz = ZoneInfo(tz)
+        except Exception:
+            tz = ZoneInfo("America/Chicago")
+    elif tz is None:
+        tz = ZoneInfo("America/Chicago")
+
+    now = now or datetime.now(tz=tz)
     if now.tzinfo is None:
-        now = now.replace(tzinfo=ZoneInfo("UTC"))
+        now = now.replace(tzinfo=tz)
 
     if last_feed is None:
         return {
@@ -226,9 +259,7 @@ def compute_clear_to_handle(
         }
 
     if not last_feed.accepted:
-        started = last_feed.created_at
-        if started is not None and started.tzinfo is None:
-            started = started.replace(tzinfo=ZoneInfo("UTC"))
+        started = resolve_handle_timer_start(last_feed, now, tz)
         return {
             "ready": True,
             "hours_since_feed": None,
@@ -241,13 +272,7 @@ def compute_clear_to_handle(
             "message": "Last feed refused — clear to handle",
         }
 
-    started = last_feed.created_at
-    if started is None:
-        # Legacy fallback: midnight on feed date (UTC)
-        started = datetime.combine(last_feed.date, datetime.min.time(), tzinfo=ZoneInfo("UTC"))
-    elif started.tzinfo is None:
-        started = started.replace(tzinfo=ZoneInfo("UTC"))
-
+    started = resolve_handle_timer_start(last_feed, now, tz)
     clear_at = started + timedelta(hours=handle_hours)
     seconds_left = (clear_at - now).total_seconds()
     hours_since = (now - started).total_seconds() / 3600
@@ -438,7 +463,11 @@ def build_overview(db: Session) -> dict[str, Any]:
                 }
             )
 
-    clear_to_handle = compute_clear_to_handle(last_feed, handle_hours, now=now)
+    try:
+        tz = ZoneInfo(cfg.timezone)
+    except Exception:
+        tz = ZoneInfo("America/Chicago")
+    clear_to_handle = compute_clear_to_handle(last_feed, handle_hours, now=now, tz=tz)
     if last_feed is None:
         reminders.append(
             {

@@ -1,5 +1,6 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 from app.models import MaintenanceKind
 from app.services.care import (
@@ -50,33 +51,66 @@ def test_format_duration():
     assert format_duration(5 * 3600 + 12 * 60) == "5h 12m"
 
 
-def test_clear_to_handle_starts_at_created_at():
-    started = datetime(2026, 8, 6, 22, 0, 0, tzinfo=timezone.utc)
+def test_clear_to_handle_today_uses_created_at():
+    tz = ZoneInfo("UTC")
+    started = datetime(2026, 8, 6, 14, 0, 0, tzinfo=tz)
     now = started + timedelta(hours=4)
     feed = SimpleNamespace(accepted=True, created_at=started, date=date(2026, 8, 6))
-    out = compute_clear_to_handle(feed, 72, now=now)
+    out = compute_clear_to_handle(feed, 72, now=now, tz=tz)
     assert out["ready"] is False
     assert out["seconds_left"] == 68 * 3600
     assert out["countdown"] == "2d 20h 0m"
-    assert out["clear_at"] is not None
     assert out["timer_started_at"] == started.isoformat()
     assert "timer" in out["message"]
 
 
-def test_clear_to_handle_ready_after_72h():
-    started = datetime(2026, 8, 1, 12, 0, 0, tzinfo=timezone.utc)
-    now = started + timedelta(hours=72, minutes=1)
-    feed = SimpleNamespace(accepted=True, created_at=started, date=date(2026, 8, 1))
-    out = compute_clear_to_handle(feed, 72, now=now)
+def test_clear_to_handle_backdated_starts_at_10pm():
+    tz = ZoneInfo("America/Chicago")
+    feed_date = date(2026, 8, 5)
+    now = datetime(2026, 8, 6, 12, 0, 0, tzinfo=tz)
+    feed = SimpleNamespace(accepted=True, created_at=now, date=feed_date)
+    out = compute_clear_to_handle(feed, 72, now=now, tz=tz)
+    expected_start = datetime(2026, 8, 5, 22, 0, 0, tzinfo=tz)
+    assert out["timer_started_at"] == expected_start.isoformat()
+    assert out["ready"] is False
+    clear_at = expected_start + timedelta(hours=72)
+    assert out["seconds_left"] == int((clear_at - now).total_seconds())
+
+
+def test_clear_to_handle_backdated_already_clear():
+    tz = ZoneInfo("UTC")
+    now = datetime(2026, 8, 8, 12, 0, 0, tzinfo=tz)
+    feed = SimpleNamespace(
+        accepted=True,
+        created_at=now,
+        date=date(2026, 8, 1),
+    )
+    out = compute_clear_to_handle(feed, 72, now=now, tz=tz)
+    assert out["ready"] is True
+    assert out["seconds_left"] == 0
+    assert out["message"] == "Clear to handle"
+    assert out["timer_started_at"] == datetime(2026, 8, 1, 22, 0, 0, tzinfo=tz).isoformat()
+
+
+def test_clear_to_handle_ready_after_72h_from_live():
+    tz = ZoneInfo("UTC")
+    now = datetime(2026, 8, 4, 12, 1, 0, tzinfo=tz)
+    feed = SimpleNamespace(
+        accepted=True,
+        created_at=now - timedelta(hours=72, minutes=1),
+        date=now.date(),
+    )
+    out = compute_clear_to_handle(feed, 72, now=now, tz=tz)
     assert out["ready"] is True
     assert out["seconds_left"] == 0
     assert out["message"] == "Clear to handle"
 
 
 def test_clear_to_handle_refused_skips_timer():
-    started = datetime(2026, 8, 6, 22, 0, 0, tzinfo=timezone.utc)
+    tz = ZoneInfo("UTC")
+    started = datetime(2026, 8, 6, 22, 0, 0, tzinfo=tz)
     feed = SimpleNamespace(accepted=False, created_at=started, date=date(2026, 8, 6))
-    out = compute_clear_to_handle(feed, 72, now=started)
+    out = compute_clear_to_handle(feed, 72, now=started, tz=tz)
     assert out["ready"] is True
     assert "refused" in out["message"].lower()
 
