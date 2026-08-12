@@ -50,6 +50,42 @@ function daysBetween(a: string, b: string) {
   return Math.round(ms / 86400000)
 }
 
+function median(nums: number[]) {
+  if (!nums.length) return null
+  const s = [...nums].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+function fmtDelta(n: number, unit = 'g') {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(0)}${unit}`
+}
+
+function countdownLabel(days: number | null | undefined) {
+  if (days == null) return '—'
+  if (days < 0) return `overdue by ${Math.abs(days)}d`
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  return `in ${days}d`
+}
+
+function inBand(v: number, lo: number, hi: number) {
+  return v >= lo && v <= hi
+}
+
+const HOT = [90, 95] as const
+const COOL = [75, 79] as const
+const RH = [40, 60] as const
+
+const FLAG_KINDS = new Set([
+  'weight_drop',
+  'weight_stall',
+  'shed_window',
+  'env_stale',
+  'regurg',
+  'feed_overdue',
+])
+
 export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChange: () => void }) {
   const [feeds, setFeeds] = useState<Feed[]>([])
   const [weights, setWeights] = useState<Weight[]>([])
@@ -156,17 +192,141 @@ export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChang
     !photos.length &&
     !regurgs.length
 
-  if (!loaded) {
-    return <p className="text-[13px] text-muted">Loading upkeep…</p>
-  }
-  if (empty) {
-    return <Empty>Log care to see upkeep over time.</Empty>
-  }
+  const wSorted = useMemo(() => [...weights].sort((a, b) => a.date.localeCompare(b.date)), [weights])
+  const fSorted = useMemo(() => [...feeds].sort((a, b) => a.date.localeCompare(b.date)), [feeds])
+  const hSorted = useMemo(() => [...handlings].sort((a, b) => a.date.localeCompare(b.date)), [handlings])
+  const eSorted = useMemo(
+    () => [...env].sort((a, b) => a.recorded_at.localeCompare(b.recorded_at)),
+    [env],
+  )
 
-  const weightSorted = [...weights].sort((a, b) => a.date.localeCompare(b.date))
+  const stories = useMemo(() => {
+    const rows: { label: string; value: string; note?: string }[] = []
+
+    let weight = animal.current_weight_g != null ? `${animal.current_weight_g}g` : 'No weight logged'
+    if (wSorted.length >= 2) {
+      const last = wSorted[wSorted.length - 1]
+      const prev = wSorted[wSorted.length - 2]
+      const d = last.weight_g - prev.weight_g
+      const pct = prev.weight_g ? (d / prev.weight_g) * 100 : 0
+      weight += ` · ${fmtDelta(d)} vs last (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`
+      const cutoff = new Date(last.date + 'T00:00:00')
+      cutoff.setDate(cutoff.getDate() - 30)
+      const win = wSorted.filter((w) => new Date(w.date + 'T00:00:00') >= cutoff)
+      if (win.length >= 2) {
+        weight += ` · ${fmtDelta(win[win.length - 1].weight_g - win[0].weight_g)} / 30d`
+      }
+    }
+    if (animal.weight_due?.countdown) weight += ` · log ${animal.weight_due.countdown}`
+    rows.push({ label: 'Weight', value: weight })
+
+    const next = animal.next_feed
+    const gaps = fSorted.slice(1).map((f, i) => daysBetween(fSorted[i].date, f.date))
+    const medGap = median(gaps)
+    const refused = fSorted.filter((f) => !f.accepted).length
+    let feed = next
+      ? `Next ${countdownLabel(next.days_until)} (${next.due_date}) · every ${next.interval_days}d`
+      : 'No feed forecast yet'
+    if (next?.interval_source) feed += ` · ${next.interval_source}`
+    if (medGap != null) feed += ` · median gap ${Math.round(medGap)}d`
+    if (fSorted.length) feed += ` · refused ${Math.round((refused / fSorted.length) * 100)}% (${fSorted.length} logs)`
+    const fr = animal.feeding_recommendation
+    const prey = fr.suggested_prey ?? fr.recommended_prey[0]
+    rows.push({ label: 'Feeding', value: feed, note: next?.interval_why })
+    if (prey) {
+      rows.push({ label: 'Prey', value: prey, note: fr.suggestion_why })
+    }
+
+    const hg = animal.handling_gap
+    const cth = animal.clear_to_handle
+    let handle = cth.ready ? 'Clear to handle' : cth.message || 'Wait after feed'
+    if (hg.days_since != null) handle += ` · last ${hg.days_since}d ago (max ${hg.max_gap_days}d)`
+    else handle += ` · never handled (max ${hg.max_gap_days}d)`
+    const hGaps = hSorted.slice(1).map((h, i) => daysBetween(hSorted[i].date, h.date))
+    const medH = median(hGaps)
+    if (medH != null) handle += ` · median ${Math.round(medH)}d between sessions`
+    rows.push({ label: 'Handling', value: handle })
+
+    const sp = animal.shed_prediction
+    let shed: string
+    let shedNote: string | undefined
+    if (animal.shed_mode.active) {
+      shed = `In shed · ${animal.shed_mode.status} · RH ${animal.shed_mode.humidity_target}`
+    } else if (sp?.estimate_date) {
+      shed = `Next ~${sp.estimate_date} (${countdownLabel(sp.days_until)})`
+      if (sp.median_days != null) shed += ` · median ${sp.median_days}d`
+      if (sp.sample_cycles != null) shed += ` · ${sp.sample_cycles} cycle${sp.sample_cycles === 1 ? '' : 's'}`
+      if (sp.in_window) shed += ' · window open'
+      shedNote = sp.why
+    } else {
+      shed = sp?.why || 'Not enough shed history to predict'
+    }
+    rows.push({ label: 'Shed', value: shed, note: shedNote })
+
+    let habitat = 'No readings yet'
+    if (eSorted.length) {
+      const ok = eSorted.filter(
+        (r) =>
+          inBand(r.temp_hot_f, HOT[0], HOT[1]) &&
+          inBand(r.temp_cool_f, COOL[0], COOL[1]) &&
+          inBand(r.humidity_pct, RH[0], RH[1]),
+      ).length
+      const last = eSorted[eSorted.length - 1]
+      habitat = `${Math.round((ok / eSorted.length) * 100)}% of readings in target (${ok}/${eSorted.length}) · last ${last.recorded_at.slice(0, 10)} ${last.temp_hot_f}/${last.temp_cool_f}°F ${last.humidity_pct}% RH`
+    }
+    rows.push({ label: 'Habitat', value: habitat })
+
+    const items = animal.maintenance_items ?? []
+    const overdue = items.filter((i) => i.overdue)
+    const nextM = animal.next_maintenance
+    let upkeep = nextM ? `${nextM.label} ${countdownLabel(nextM.days_until)}` : 'No maintenance schedule'
+    if (overdue.length) upkeep += ` · ${overdue.length} overdue`
+    rows.push({ label: 'Upkeep', value: upkeep })
+
+    if (regurgs.length) {
+      const last = [...regurgs].sort((a, b) => a.date.localeCompare(b.date))[regurgs.length - 1]
+      rows.push({
+        label: 'Regurg',
+        value: `${regurgs.length} logged` + (last ? ` · last ${last.date} (${last.severity})` : ''),
+      })
+    }
+
+    return rows
+  }, [animal, wSorted, fSorted, hSorted, eSorted, regurgs])
+
+  const flags = (animal.reminders ?? []).filter((r) => FLAG_KINDS.has(r.kind))
+  const weightSorted = wSorted
 
   return (
     <div>
+      <section>
+        <SectionLabel>How they&apos;re doing</SectionLabel>
+        <div className="space-y-3">
+          {stories.map((s) => (
+            <div key={s.label}>
+              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{s.label}</div>
+              <p className="mt-0.5 text-[13px] leading-snug text-bone">{s.value}</p>
+              {s.note ? <p className="mt-0.5 text-[12px] leading-snug text-muted">{s.note}</p> : null}
+            </div>
+          ))}
+        </div>
+        {flags.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {flags.map((f) => (
+              <li key={f.kind + f.message} className="text-[13px] leading-snug text-sand">
+                {f.message}
+                {f.why ? <div className="mt-0.5 text-[12px] text-muted">{f.why}</div> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {!loaded ? <p className="text-[13px] text-muted">Loading upkeep…</p> : null}
+      {loaded && empty ? <Empty>Log care to see upkeep over time.</Empty> : null}
+
+      {loaded && !empty && (
+      <>
       <section>
         <SectionLabel>Photos</SectionLabel>
         {photos.length === 0 ? (
@@ -270,6 +430,8 @@ export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChang
         label="Regurg"
         points={regurgs.map((r) => ({ date: r.date, label: r.severity, tone: 'warn' as const }))}
       />
+      </>
+      )}
     </div>
   )
 }
