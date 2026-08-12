@@ -11,6 +11,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class AnimalHeroUpdate(BaseModel):
+    hero_photo_id: int | None = None
+
+
 class TokenResponse(BaseModel):
     token: str
     expires_at: datetime

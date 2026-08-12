@@ -44,6 +44,11 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   animal: () => request<AnimalOverview>('/api/animal'),
+  setHero: (hero_photo_id: number | null) =>
+    request<AnimalOverview>('/api/animal', {
+      method: 'PATCH',
+      body: JSON.stringify({ hero_photo_id }),
+    }),
   feeding: {
     config: () => request<FeedingConfig>('/api/feeding/config'),
     recommend: (prey?: string | null) => {
@@ -227,6 +232,8 @@ export type AnimalOverview = {
   sex: string
   owner: string
   status: string
+  hero_photo_id: number | null
+  hero_photo_url: string | null
   age: { months: number; days: number; total: number }
   stage: { label: string; desc: string; feed_interval_days: number }
   prey_categories: string[]

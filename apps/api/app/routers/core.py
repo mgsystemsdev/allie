@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from app.auth import create_token, require_auth, token_expires_at
 from app.config import get_settings
 from app.db import get_db
-from app.schemas import LoginRequest, TokenResponse
-from app.services.care import build_overview, calc_age, get_animal
+from app.schemas import AnimalHeroUpdate, LoginRequest, TokenResponse
+from app.services.care import build_overview, calc_age, get_animal, set_animal_hero
 from app.services.feeding_rules import feeding_config, recommend_feeding
 
 router = APIRouter(prefix="/api", tags=["core"])
@@ -24,6 +24,22 @@ def animal_overview(_: None = Depends(require_auth), db: Session = Depends(get_d
         return build_overview(db)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch("/animal")
+def patch_animal(
+    body: AnimalHeroUpdate,
+    _: None = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    animal = get_animal(db)
+    if animal is None:
+        raise HTTPException(status_code=404, detail="No animal")
+    try:
+        set_animal_hero(db, animal, body.hero_photo_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return build_overview(db)
 
 
 @router.get("/feeding/config")

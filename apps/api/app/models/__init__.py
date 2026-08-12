@@ -61,6 +61,9 @@ class Animal(Base):
     sex: Mapped[str] = mapped_column(String(20), nullable=False, default="female")
     owner: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="Active & Healthy")
+    hero_photo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("photos.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class Feed(Base):

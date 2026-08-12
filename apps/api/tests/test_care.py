@@ -212,3 +212,145 @@ def test_settings_defaults():
 
 def test_already_sent_helper_signature():
     assert callable(already_sent)
+
+
+# --- hero photo ---
+
+from datetime import date as _date
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.auth import require_auth
+from app.db import Base, get_db
+from app.models import Animal, Photo, PhotoKind
+from app.routers import core, extras
+
+
+def _hero_engine():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def _fk(dbapi_conn, _rec):
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
+    return engine
+
+
+def _hero_client(engine):
+    TestingSession = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
+
+    def _get_db():
+        db = TestingSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = FastAPI()
+    app.include_router(core.router)
+    app.include_router(extras.router)
+    app.dependency_overrides[get_db] = _get_db
+    app.dependency_overrides[require_auth] = lambda: None
+    return TestClient(app), TestingSession
+
+
+def _seed_allie(session, *, with_photo=True):
+    animal = Animal(
+        name="Allie",
+        species="Morelia spilota",
+        common_name="Carpet python",
+        dob=_date(2025, 8, 21),
+        sex="female",
+        owner="Miguel",
+        status="Active & Healthy",
+    )
+    session.add(animal)
+    session.commit()
+    session.refresh(animal)
+    photo = None
+    if with_photo:
+        photo = Photo(
+            animal_id=animal.id,
+            taken_at=_date(2026, 8, 1),
+            kind=PhotoKind.growth,
+            file_path="/tmp/allie-hero.jpg",
+            caption="",
+        )
+        session.add(photo)
+        session.commit()
+        session.refresh(photo)
+    return animal, photo
+
+
+def test_overview_includes_hero_fields_null():
+    engine = _hero_engine()
+    Base.metadata.create_all(engine)
+    client, Session = _hero_client(engine)
+    db = Session()
+    _seed_allie(db, with_photo=False)
+    db.close()
+
+    res = client.get("/api/animal")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hero_photo_id"] is None
+    assert body["hero_photo_url"] is None
+
+
+def test_patch_hero_set_and_clear():
+    engine = _hero_engine()
+    Base.metadata.create_all(engine)
+    client, Session = _hero_client(engine)
+    db = Session()
+    _animal, photo = _seed_allie(db)
+    photo_id = photo.id
+    db.close()
+
+    res = client.patch("/api/animal", json={"hero_photo_id": photo_id})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hero_photo_id"] == photo_id
+    assert body["hero_photo_url"] == "/uploads/allie-hero.jpg"
+
+    res = client.patch("/api/animal", json={"hero_photo_id": None})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hero_photo_id"] is None
+    assert body["hero_photo_url"] is None
+
+
+def test_patch_hero_missing_photo_404():
+    engine = _hero_engine()
+    Base.metadata.create_all(engine)
+    client, Session = _hero_client(engine)
+    db = Session()
+    _seed_allie(db, with_photo=False)
+    db.close()
+
+    res = client.patch("/api/animal", json={"hero_photo_id": 999})
+    assert res.status_code == 404
+
+
+def test_delete_photo_clears_hero():
+    engine = _hero_engine()
+    Base.metadata.create_all(engine)
+    client, Session = _hero_client(engine)
+    db = Session()
+    _animal, photo = _seed_allie(db)
+    photo_id = photo.id
+    db.close()
+
+    assert client.patch("/api/animal", json={"hero_photo_id": photo_id}).status_code == 200
+    assert client.delete(f"/api/photos/{photo_id}").status_code == 200
+    res = client.get("/api/animal")
+    assert res.status_code == 200
+    assert res.json()["hero_photo_id"] is None
+    assert res.json()["hero_photo_url"] is None

@@ -5,6 +5,7 @@ import {
   type AnimalOverview,
   type Feed,
   type PreyStatus,
+  type Reminder,
 } from '../api/client'
 import { Btn, BtnSm, Card, CardTitle, Empty, Field, Input, LogForm, SectionLabel, Select } from './ui'
 
@@ -24,6 +25,50 @@ const STATUS_CLASS: Record<PreyStatus, string> = {
   too_small: 'text-muted',
   too_large: 'text-bone',
   unknown: 'text-muted',
+}
+
+type DueGroupId = 'weight' | 'feeding' | 'handling' | 'shed' | 'habitat' | 'maintenance'
+
+const DUE_GROUP_ORDER: { id: DueGroupId; label: string }[] = [
+  { id: 'weight', label: 'Weight' },
+  { id: 'feeding', label: 'Feeding' },
+  { id: 'handling', label: 'Handling' },
+  { id: 'shed', label: 'Shed' },
+  { id: 'habitat', label: 'Habitat' },
+  { id: 'maintenance', label: 'Maintenance' },
+]
+
+function reminderGroup(kind: string): DueGroupId | null {
+  if (kind === 'handle_wait') return null
+  if (kind.startsWith('weight')) return 'weight'
+  if (kind.startsWith('feed_')) return 'feeding'
+  if (kind.startsWith('handling')) return 'handling'
+  if (kind.startsWith('shed')) return 'shed'
+  if (kind.startsWith('env_')) return 'habitat'
+  if (kind.startsWith('maint')) return 'maintenance'
+  return null
+}
+
+function groupedDueReminders(reminders: Reminder[]) {
+  const buckets = new Map<DueGroupId, Reminder[]>()
+  const other: Reminder[] = []
+  for (const r of reminders) {
+    const g = reminderGroup(r.kind)
+    if (!g) {
+      if (r.kind !== 'handle_wait') other.push(r)
+      continue
+    }
+    const list = buckets.get(g) ?? []
+    list.push(r)
+    buckets.set(g, list)
+  }
+  return {
+    groups: DUE_GROUP_ORDER.filter((g) => buckets.has(g.id)).map((g) => ({
+      ...g,
+      items: buckets.get(g.id) ?? [],
+    })),
+    other,
+  }
 }
 
 export function OverviewTab({
@@ -77,64 +122,93 @@ export function OverviewTab({
   const next = animal.next_feed
   const fr = animal.feeding_recommendation
   const iv = fr.feeding_interval
+  const due = groupedDueReminders(animal.reminders)
 
   return (
     <div>
-      {animal.reminders.some((r) => r.severity === 'low') && (
-        <>
-          <SectionLabel>Notes</SectionLabel>
-          <div className="mb-1 space-y-2">
-            {animal.reminders
-              .filter((r) => r.severity === 'low')
-              .map((r) => (
-                <p key={r.kind + r.message} className="text-[13px] leading-relaxed text-muted">
-                  {r.message}
-                  {r.why ? <span className="mt-0.5 block text-[11px]">{r.why}</span> : null}
-                </p>
+      <div className="mb-4 grid gap-6 sm:grid-cols-2">
+        <section aria-label="Due soon">
+          <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+            Due soon
+          </div>
+          {due.groups.length === 0 && due.other.length === 0 ? (
+            <p className="text-[13px] text-muted">Nothing due</p>
+          ) : (
+            <div className="space-y-3">
+              {due.groups.map((g) => (
+                <div key={g.id}>
+                  <div className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-sand">
+                    {g.label}
+                  </div>
+                  <ul className="mt-1 space-y-1.5">
+                    {g.items.map((r) => (
+                      <li key={r.kind + r.message}>
+                        <div
+                          className={`text-[13px] leading-snug ${
+                            r.severity === 'high' ? 'font-semibold text-bone' : 'text-bone'
+                          }`}
+                        >
+                          {r.message}
+                        </div>
+                        {r.why ? <div className="mt-0.5 text-[11px] text-muted">{r.why}</div> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-          </div>
-        </>
-      )}
+              {due.other.length > 0 && (
+                <ul className="space-y-1.5">
+                  {due.other.map((r) => (
+                    <li key={r.kind + r.message}>
+                      <div className="text-[13px] leading-snug text-bone">{r.message}</div>
+                      {r.why ? <div className="mt-0.5 text-[11px] text-muted">{r.why}</div> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
 
-      <Card className="mb-3">
-        <CardTitle>Feeding recommendation · {fr.stage}</CardTitle>
-        <div className="mt-1 text-[13px] text-bone-dark">
-          Safest default:{' '}
-          <span className="text-sand">every {next?.interval_days ?? iv.recommended_days}d</span>
-          <span className="text-muted">
-            {' '}
-            (safe range {iv.min_days}–{iv.max_days}d
-            {next?.interval_source ? ` · ${next.interval_source}` : ''})
-          </span>
-        </div>
-        <div className="mt-1 text-[12px] text-muted">
-          Handle after feed: {animal.clear_to_handle.clear_after_hours}h timer. Overdue feeds don&apos;t
-          stretch the next gap — resume the normal schedule after you feed.
-        </div>
-        {next?.interval_why && (
-          <div className="mt-1 text-[11px] text-muted">{next.interval_why}</div>
-        )}
-        <div className="mt-1.5 text-[12px] text-muted">
-          Suggested: {fr.suggested_prey ?? fr.recommended_prey[0] ?? '—'}
-          {fr.suggestion_why ? ` — ${fr.suggestion_why}` : ''}
-        </div>
-        <div className="mt-1 text-[12px] text-muted">
-          Stage band: {fr.recommended_prey.join(', ')}
-        </div>
-        {animal.last_feed && fr.prey_status && (
-          <div className={`mt-1.5 text-[12px] ${STATUS_CLASS[fr.prey_status]}`}>
-            Last prey ({animal.last_feed.prey_type}): {STATUS_LABEL[fr.prey_status]}
+        <section aria-label="Feeding recommendation">
+          <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+            Feeding · {fr.stage}
           </div>
-        )}
-        {animal.shed_prediction?.estimate_date && (
-          <div className="mt-1.5 text-[12px] text-muted">
-            Next shed ~{animal.shed_prediction.estimate_date}
-            {animal.shed_prediction.median_days != null
-              ? ` (median ${animal.shed_prediction.median_days}d cycles)`
-              : ''}
-          </div>
-        )}
-      </Card>
+          <ul className="list-disc space-y-1.5 pl-4 text-[13px] leading-snug text-bone-dark">
+            <li>
+              Every {next?.interval_days ?? iv.recommended_days}d
+              <span className="text-muted">
+                {' '}
+                · safe {iv.min_days}–{iv.max_days}d
+                {next?.interval_source ? ` · ${next.interval_source}` : ''}
+              </span>
+            </li>
+            <li>
+              Handle {animal.clear_to_handle.clear_after_hours}h after feed. Overdue feeds don&apos;t
+              stretch the next gap.
+            </li>
+            {next?.interval_why ? <li className="text-muted">{next.interval_why}</li> : null}
+            <li>
+              Suggested: {fr.suggested_prey ?? fr.recommended_prey[0] ?? '—'}
+              {fr.suggestion_why ? ` — ${fr.suggestion_why}` : ''}
+            </li>
+            <li>Stage band: {fr.recommended_prey.join(', ')}</li>
+            {animal.last_feed && fr.prey_status ? (
+              <li className={STATUS_CLASS[fr.prey_status]}>
+                Last prey ({animal.last_feed.prey_type}): {STATUS_LABEL[fr.prey_status]}
+              </li>
+            ) : null}
+            {animal.shed_prediction?.estimate_date ? (
+              <li className="text-muted">
+                Next shed ~{animal.shed_prediction.estimate_date}
+                {animal.shed_prediction.median_days != null
+                  ? ` (median ${animal.shed_prediction.median_days}d)`
+                  : ''}
+              </li>
+            ) : null}
+          </ul>
+        </section>
+      </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         <Card>
