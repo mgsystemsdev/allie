@@ -168,10 +168,10 @@ function HeroPortrait({
           <img
             src={mediaUrl(url)}
             alt=""
-            className="h-16 w-16 object-cover sm:h-[88px] sm:w-[88px]"
+            className="h-28 w-28 object-cover sm:h-36 sm:w-36"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center bg-bark font-display text-xl text-muted sm:h-[88px] sm:w-[88px]">
+          <div className="flex h-28 w-28 items-center justify-center bg-bark font-display text-2xl text-muted sm:h-36 sm:w-36 sm:text-3xl">
             {name.slice(0, 1)}
           </div>
         )}

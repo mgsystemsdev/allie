@@ -24,23 +24,42 @@ import { Empty, SectionLabel } from './ui'
 
 type Point = { date: string; label: string; tone?: 'ok' | 'warn' }
 
+function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-[10px] border border-border-hi bg-bark p-3.5">{children}</div>
+}
+
+function FactRows({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="divide-y divide-border">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-baseline justify-between gap-4 py-2.5 text-[13px]">
+          <span className="shrink-0 text-muted">{k}</span>
+          <span className="max-w-[65%] text-right font-mono text-[12px] text-bone">{v}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Track({ label, points }: { label: string; points: Point[] }) {
   const sorted = useMemo(() => [...points].sort((a, b) => a.date.localeCompare(b.date)), [points])
   if (!sorted.length) return null
   return (
     <section>
       <SectionLabel>{label}</SectionLabel>
-      <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none">
-        {sorted.map((p, i) => (
-          <div key={`${p.date}-${p.label}-${i}`} className="w-16 shrink-0 text-center">
-            <div
-              className={`mx-auto h-2 w-2 rounded-full ${p.tone === 'ok' ? 'bg-sage' : p.tone === 'warn' ? 'bg-sand' : 'bg-olive'}`}
-            />
-            <div className="mt-1.5 font-mono text-[10px] text-muted">{p.date.slice(5)}</div>
-            <div className="mt-0.5 text-[11px] leading-tight text-bone">{p.label}</div>
-          </div>
-        ))}
-      </div>
+      <Panel>
+        <div className="flex gap-4 overflow-x-auto pb-0.5 scrollbar-none">
+          {sorted.map((p, i) => (
+            <div key={`${p.date}-${p.label}-${i}`} className="w-16 shrink-0 text-center">
+              <div
+                className={`mx-auto h-2 w-2 rounded-full ${p.tone === 'ok' ? 'bg-sage' : p.tone === 'warn' ? 'bg-sand' : 'bg-olive'}`}
+              />
+              <div className="mt-1.5 font-mono text-[10px] text-muted">{p.date.slice(5)}</div>
+              <div className="mt-0.5 text-[11px] leading-tight text-bone">{p.label}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
     </section>
   )
 }
@@ -63,7 +82,7 @@ function fmtDelta(n: number, unit = 'g') {
 
 function countdownLabel(days: number | null | undefined) {
   if (days == null) return '—'
-  if (days < 0) return `overdue by ${Math.abs(days)}d`
+  if (days < 0) return `overdue ${Math.abs(days)}d`
   if (days === 0) return 'today'
   if (days === 1) return 'tomorrow'
   return `in ${days}d`
@@ -200,70 +219,51 @@ export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChang
     [env],
   )
 
-  const stories = useMemo(() => {
-    const rows: { label: string; value: string; note?: string }[] = []
-
-    let weight = animal.current_weight_g != null ? `${animal.current_weight_g}g` : 'No weight logged'
+  const insight = useMemo(() => {
+    let weightMain = animal.current_weight_g != null ? `${animal.current_weight_g}g` : '—'
+    let weightSub = 'No weight logged'
     if (wSorted.length >= 2) {
       const last = wSorted[wSorted.length - 1]
       const prev = wSorted[wSorted.length - 2]
       const d = last.weight_g - prev.weight_g
-      const pct = prev.weight_g ? (d / prev.weight_g) * 100 : 0
-      weight += ` · ${fmtDelta(d)} vs last (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`
       const cutoff = new Date(last.date + 'T00:00:00')
       cutoff.setDate(cutoff.getDate() - 30)
       const win = wSorted.filter((w) => new Date(w.date + 'T00:00:00') >= cutoff)
-      if (win.length >= 2) {
-        weight += ` · ${fmtDelta(win[win.length - 1].weight_g - win[0].weight_g)} / 30d`
-      }
+      const parts = [`${fmtDelta(d)} vs last`]
+      if (win.length >= 2) parts.push(`${fmtDelta(win[win.length - 1].weight_g - win[0].weight_g)} / 30d`)
+      weightSub = parts.join(' · ')
+    } else if (animal.current_weight_g != null) {
+      weightSub = animal.current_weight_date ? `Logged ${animal.current_weight_date}` : 'Current'
     }
-    if (animal.weight_due?.countdown) weight += ` · log ${animal.weight_due.countdown}`
-    rows.push({ label: 'Weight', value: weight })
 
     const next = animal.next_feed
     const gaps = fSorted.slice(1).map((f, i) => daysBetween(fSorted[i].date, f.date))
     const medGap = median(gaps)
     const refused = fSorted.filter((f) => !f.accepted).length
-    let feed = next
-      ? `Next ${countdownLabel(next.days_until)} (${next.due_date}) · every ${next.interval_days}d`
-      : 'No feed forecast yet'
-    if (next?.interval_source) feed += ` · ${next.interval_source}`
-    if (medGap != null) feed += ` · median gap ${Math.round(medGap)}d`
-    if (fSorted.length) feed += ` · refused ${Math.round((refused / fSorted.length) * 100)}% (${fSorted.length} logs)`
-    const fr = animal.feeding_recommendation
-    const prey = fr.suggested_prey ?? fr.recommended_prey[0]
-    rows.push({ label: 'Feeding', value: feed, note: next?.interval_why })
-    if (prey) {
-      rows.push({ label: 'Prey', value: prey, note: fr.suggestion_why })
-    }
-
-    const hg = animal.handling_gap
-    const cth = animal.clear_to_handle
-    let handle = cth.ready ? 'Clear to handle' : cth.message || 'Wait after feed'
-    if (hg.days_since != null) handle += ` · last ${hg.days_since}d ago (max ${hg.max_gap_days}d)`
-    else handle += ` · never handled (max ${hg.max_gap_days}d)`
-    const hGaps = hSorted.slice(1).map((h, i) => daysBetween(hSorted[i].date, h.date))
-    const medH = median(hGaps)
-    if (medH != null) handle += ` · median ${Math.round(medH)}d between sessions`
-    rows.push({ label: 'Handling', value: handle })
+    const feedMain = next ? countdownLabel(next.days_until) : '—'
+    let feedSub = next ? `every ${next.interval_days}d` : 'No forecast'
+    if (next?.interval_source) feedSub += ` · ${next.interval_source}`
+    if (medGap != null) feedSub += ` · med ${Math.round(medGap)}d`
+    if (fSorted.length) feedSub += ` · ${Math.round((refused / fSorted.length) * 100)}% refused`
 
     const sp = animal.shed_prediction
-    let shed: string
-    let shedNote: string | undefined
+    let shedMain = '—'
+    let shedSub = 'Need more history'
     if (animal.shed_mode.active) {
-      shed = `In shed · ${animal.shed_mode.status} · RH ${animal.shed_mode.humidity_target}`
+      shedMain = animal.shed_mode.status
+      shedSub = `In shed · RH ${animal.shed_mode.humidity_target}`
     } else if (sp?.estimate_date) {
-      shed = `Next ~${sp.estimate_date} (${countdownLabel(sp.days_until)})`
-      if (sp.median_days != null) shed += ` · median ${sp.median_days}d`
-      if (sp.sample_cycles != null) shed += ` · ${sp.sample_cycles} cycle${sp.sample_cycles === 1 ? '' : 's'}`
-      if (sp.in_window) shed += ' · window open'
-      shedNote = sp.why
-    } else {
-      shed = sp?.why || 'Not enough shed history to predict'
+      shedMain = countdownLabel(sp.days_until)
+      shedSub = `~${sp.estimate_date}`
+      if (sp.median_days != null) shedSub += ` · med ${sp.median_days}d`
+      if (sp.in_window) shedSub += ' · window'
+    } else if (sp?.why) {
+      shedSub = sp.why
     }
-    rows.push({ label: 'Shed', value: shed, note: shedNote })
 
-    let habitat = 'No readings yet'
+    let habitatMain = '—'
+    let habitatSub = 'No readings'
+    let habitatPct: number | null = null
     if (eSorted.length) {
       const ok = eSorted.filter(
         (r) =>
@@ -271,44 +271,72 @@ export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChang
           inBand(r.temp_cool_f, COOL[0], COOL[1]) &&
           inBand(r.humidity_pct, RH[0], RH[1]),
       ).length
+      habitatPct = Math.round((ok / eSorted.length) * 100)
+      habitatMain = `${habitatPct}%`
       const last = eSorted[eSorted.length - 1]
-      habitat = `${Math.round((ok / eSorted.length) * 100)}% of readings in target (${ok}/${eSorted.length}) · last ${last.recorded_at.slice(0, 10)} ${last.temp_hot_f}/${last.temp_cool_f}°F ${last.humidity_pct}% RH`
+      habitatSub = `${ok}/${eSorted.length} in band · last ${last.recorded_at.slice(0, 10)}`
     }
-    rows.push({ label: 'Habitat', value: habitat })
 
-    const items = animal.maintenance_items ?? []
-    const overdue = items.filter((i) => i.overdue)
+    const fr = animal.feeding_recommendation
+    const prey = fr.suggested_prey ?? fr.recommended_prey[0]
+    const hg = animal.handling_gap
+    const cth = animal.clear_to_handle
+    const hGaps = hSorted.slice(1).map((h, i) => daysBetween(hSorted[i].date, h.date))
+    const medH = median(hGaps)
+    let handleVal = cth.ready ? 'Clear' : 'Locked'
+    if (hg.days_since != null) handleVal += ` · ${hg.days_since}d ago`
+    else handleVal += ' · never'
+    if (medH != null) handleVal += ` · med ${Math.round(medH)}d`
+
     const nextM = animal.next_maintenance
-    let upkeep = nextM ? `${nextM.label} ${countdownLabel(nextM.days_until)}` : 'No maintenance schedule'
-    if (overdue.length) upkeep += ` · ${overdue.length} overdue`
-    rows.push({ label: 'Upkeep', value: upkeep })
+    const overdue = (animal.maintenance_items ?? []).filter((i) => i.overdue)
+    let upkeepVal = nextM ? `${nextM.label} ${countdownLabel(nextM.days_until)}` : '—'
+    if (overdue.length) upkeepVal += ` · ${overdue.length} overdue`
 
+    const facts: [string, string][] = [
+      ['Feeding', next ? `every ${next.interval_days}d${next.interval_why ? ` · ${next.interval_why}` : ''}` : 'No forecast'],
+    ]
+    if (prey) facts.push(['Prey', prey + (fr.suggestion_why ? ` — ${fr.suggestion_why}` : '')])
+    facts.push(['Handling', handleVal])
+    facts.push(['Upkeep', upkeepVal])
     if (regurgs.length) {
       const last = [...regurgs].sort((a, b) => a.date.localeCompare(b.date))[regurgs.length - 1]
-      rows.push({
-        label: 'Regurg',
-        value: `${regurgs.length} logged` + (last ? ` · last ${last.date} (${last.severity})` : ''),
-      })
+      facts.push(['Regurg', `${regurgs.length} logged` + (last ? ` · ${last.date}` : '')])
     }
 
-    return rows
+    return {
+      kpis: [
+        { label: 'Weight', main: weightMain, sub: weightSub },
+        { label: 'Next feed', main: feedMain, sub: feedSub },
+        { label: 'Shed', main: shedMain, sub: shedSub },
+        { label: 'Habitat', main: habitatMain, sub: habitatSub },
+      ],
+      facts,
+      habitatPct,
+    }
   }, [animal, wSorted, fSorted, hSorted, eSorted, regurgs])
 
   const flags = (animal.reminders ?? []).filter((r) => FLAG_KINDS.has(r.kind))
-  const weightSorted = wSorted
 
   return (
     <div>
       <section>
         <SectionLabel>How they&apos;re doing</SectionLabel>
-        <div className="space-y-3">
-          {stories.map((s) => (
-            <div key={s.label}>
-              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{s.label}</div>
-              <p className="mt-0.5 text-[13px] leading-snug text-bone">{s.value}</p>
-              {s.note ? <p className="mt-0.5 text-[12px] leading-snug text-muted">{s.note}</p> : null}
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-[10px] border border-border-hi bg-bark">
+          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+            {insight.kpis.map((k) => (
+              <div key={k.label} className="bg-bark px-3.5 py-4 sm:px-4">
+                <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{k.label}</div>
+                <div className="mt-1.5 font-display text-[1.65rem] font-semibold leading-none tracking-tight text-bone sm:text-[1.85rem]">
+                  {k.main}
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-muted">{k.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 rounded-[10px] border border-border-hi bg-bark px-3.5">
+          <FactRows rows={insight.facts} />
         </div>
         {flags.length > 0 && (
           <ul className="mt-3 space-y-1.5">
@@ -326,111 +354,119 @@ export function StatsTab({ animal, onChange }: { animal: AnimalOverview; onChang
       {loaded && empty ? <Empty>Log care to see upkeep over time.</Empty> : null}
 
       {loaded && !empty && (
-      <>
-      <section>
-        <SectionLabel>Photos</SectionLabel>
-        {photos.length === 0 ? (
-          <p className="text-[13px] text-muted">No photos yet.</p>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-            {photos.map((p) => {
-              const hero = p.id === animal.hero_photo_id
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => void api.setHero(hero ? null : p.id).then(() => onChange())}
-                  className={`shrink-0 text-left ${hero ? 'ring-2 ring-sand ring-offset-2 ring-offset-charcoal' : ''}`}
-                  aria-pressed={hero}
-                  title={hero ? 'Current profile — tap to clear' : 'Set as profile'}
-                >
-                  <img
-                    src={mediaUrl(p.url)}
-                    alt={p.caption || p.kind}
-                    className="h-20 w-20 rounded-[8px] border border-border-hi object-cover"
-                  />
-                  <div className="mt-1 font-mono text-[10px] text-muted">{p.taken_at.slice(5)}</div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
+        <>
+          <section>
+            <SectionLabel>Photos</SectionLabel>
+            <Panel>
+              {photos.length === 0 ? (
+                <p className="text-[13px] text-muted">No photos yet.</p>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-0.5 scrollbar-none">
+                  {photos.map((p) => {
+                    const hero = p.id === animal.hero_photo_id
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => void api.setHero(hero ? null : p.id).then(() => onChange())}
+                        className={`shrink-0 text-left ${hero ? 'ring-2 ring-sand ring-offset-2 ring-offset-bark' : ''}`}
+                        aria-pressed={hero}
+                        title={hero ? 'Current profile — tap to clear' : 'Set as profile'}
+                      >
+                        <img
+                          src={mediaUrl(p.url)}
+                          alt={p.caption || p.kind}
+                          className="h-24 w-24 rounded-[8px] border border-border-hi object-cover"
+                        />
+                        <div className="mt-1 font-mono text-[10px] text-muted">{p.taken_at.slice(5)}</div>
+                        {hero ? <div className="font-mono text-[9px] uppercase tracking-wide text-sand">Profile</div> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </Panel>
+          </section>
 
-      <section>
-        <SectionLabel>Weight</SectionLabel>
-        {weightSorted.length === 0 ? (
-          <p className="text-[13px] text-muted">No weights yet.</p>
-        ) : (
-          <>
-            <p className="mb-2 text-[13px] text-bone">
-              {animal.current_weight_g != null ? `${animal.current_weight_g}g` : '—'}
-              {weightSorted.length > 1 ? (
-                <span className="text-muted">
-                  {' '}
-                  · {weightSorted[weightSorted.length - 1].weight_g - weightSorted[0].weight_g >= 0 ? '+' : ''}
-                  {(weightSorted[weightSorted.length - 1].weight_g - weightSorted[0].weight_g).toFixed(0)}g since first log
-                </span>
-              ) : null}
-            </p>
-            <div className="mb-2 h-[180px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weightSorted.map((w) => ({ date: w.date, weight: w.weight_g }))}>
-                  <XAxis dataKey="date" stroke="#737373" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#737373" tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: '#ffffff', border: '1px solid #d4d4d4', color: '#000000' }}
-                  />
-                  <Line type="monotone" dataKey="weight" stroke="#404040" strokeWidth={2} dot={{ fill: '#404040' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </>
-        )}
-      </section>
+          <section>
+            <SectionLabel>Weight</SectionLabel>
+            <Panel>
+              {wSorted.length === 0 ? (
+                <p className="text-[13px] text-muted">No weights yet.</p>
+              ) : (
+                <>
+                  <p className="mb-2 font-display text-xl font-semibold text-bone">
+                    {animal.current_weight_g != null ? `${animal.current_weight_g}g` : '—'}
+                    {wSorted.length > 1 ? (
+                      <span className="ml-2 font-sans text-[13px] font-normal text-muted">
+                        {fmtDelta(wSorted[wSorted.length - 1].weight_g - wSorted[0].weight_g)} since first
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="h-[180px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={wSorted.map((w) => ({ date: w.date, weight: w.weight_g }))}>
+                        <XAxis dataKey="date" stroke="#737373" tick={{ fontSize: 11 }} />
+                        <YAxis stroke="#737373" tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#ffffff', border: '1px solid #d4d4d4', color: '#000000' }}
+                        />
+                        <Line type="monotone" dataKey="weight" stroke="#404040" strokeWidth={2} dot={{ fill: '#404040' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
+            </Panel>
+          </section>
 
-      <Track label="Feeding rhythm" points={feedPoints} />
-      <Track label="Handling" points={handlePoints} />
-      <Track
-        label={
-          animal.shed_prediction?.median_days != null
-            ? `Shed · median ${animal.shed_prediction.median_days}d`
-            : 'Shed'
-        }
-        points={shedPoints}
-      />
+          <Track label="Feeding rhythm" points={feedPoints} />
+          <Track label="Handling" points={handlePoints} />
+          <Track
+            label={
+              animal.shed_prediction?.median_days != null
+                ? `Shed · median ${animal.shed_prediction.median_days}d`
+                : 'Shed'
+            }
+            points={shedPoints}
+          />
 
-      <section>
-        <SectionLabel>Habitat</SectionLabel>
-        {envChart.length === 0 ? (
-          <p className="text-[13px] text-muted">No readings yet.</p>
-        ) : (
-          <>
-            <p className="mb-2 text-[12px] text-muted">Targets · hot 90–95°F · cool 75–79°F · RH 40–60%</p>
-            <div className="h-[160px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={envChart}>
-                  <XAxis dataKey="date" stroke="#737373" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#737373" tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: '#ffffff', border: '1px solid #d4d4d4', color: '#000000' }}
-                  />
-                  <Line type="monotone" dataKey="hot" stroke="#404040" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cool" stroke="#737373" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="rh" stroke="#525252" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </>
-        )}
-      </section>
+          <section>
+            <SectionLabel>Habitat</SectionLabel>
+            <Panel>
+              {envChart.length === 0 ? (
+                <p className="text-[13px] text-muted">No readings yet.</p>
+              ) : (
+                <>
+                  <p className="mb-2 text-[12px] text-muted">
+                    {insight.habitatPct != null ? `${insight.habitatPct}% in target · ` : ''}
+                    Targets · hot 90–95°F · cool 75–79°F · RH 40–60%
+                  </p>
+                  <div className="h-[160px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={envChart}>
+                        <XAxis dataKey="date" stroke="#737373" tick={{ fontSize: 11 }} />
+                        <YAxis stroke="#737373" tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#ffffff', border: '1px solid #d4d4d4', color: '#000000' }}
+                        />
+                        <Line type="monotone" dataKey="hot" stroke="#404040" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="cool" stroke="#737373" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="rh" stroke="#525252" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
+            </Panel>
+          </section>
 
-      <Track label="Maintenance" points={maintPoints} />
-      <Track
-        label="Regurg"
-        points={regurgs.map((r) => ({ date: r.date, label: r.severity, tone: 'warn' as const }))}
-      />
-      </>
+          <Track label="Maintenance" points={maintPoints} />
+          <Track
+            label="Regurg"
+            points={regurgs.map((r) => ({ date: r.date, label: r.severity, tone: 'warn' as const }))}
+          />
+        </>
       )}
     </div>
   )
