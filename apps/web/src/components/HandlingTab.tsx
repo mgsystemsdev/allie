@@ -33,7 +33,7 @@ export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onCh
     <div>
       <div
         className={`mb-4 rounded-lg border px-3 py-3 text-[13px] ${
-          blocked ? 'border-[#D4A040] bg-[#3a2a10] text-[#E8C080]' : 'border-olive bg-[#1a3a20] text-sage'
+          blocked ? 'border-sand bg-bark text-sand' : 'border-olive bg-bark text-sage'
         }`}
       >
         {blocked ? (
@@ -102,7 +102,7 @@ export function HandlingTab({ animal, onChange }: { animal: AnimalOverview; onCh
           {rows.map((r) => (
             <li
               key={r.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-[#2a1a10] px-3 py-2 text-[13px]"
+              className="flex items-center justify-between rounded-lg border border-border bg-bark px-3 py-2 text-[13px]"
             >
               <div>
                 <div className="font-bold text-bone">

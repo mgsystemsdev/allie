@@ -51,7 +51,7 @@ export function PreyTab({ animal }: { animal: AnimalOverview }) {
             return (
               <tr
                 key={label}
-                className={`border-b border-[#3a2415] ${cur ? 'border-l-[3px] border-l-sand bg-[#4a2c14] text-bone' : ''}`}
+                className={`border-b border-border ${cur ? 'border-l-[3px] border-l-sand bg-bark text-bone' : ''}`}
               >
                 <td className="px-2.5 py-2">{cur ? `★ ${label}` : label}</td>
                 <td className="px-2.5 py-2">{rules.desc}</td>

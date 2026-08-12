@@ -107,7 +107,7 @@ export function HealthTab({ onChange }: { onChange: () => void }) {
       <div className="mb-4 space-y-2">
         {sheds.map((s) => (
           <div key={s.id} className="flex items-center gap-3 rounded-[10px] border border-border bg-charcoal p-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-[#6a4a20] bg-bark text-xl">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-olive bg-bark text-xl">
               🐍
             </div>
             <div className="flex-1">
@@ -252,7 +252,7 @@ export function HealthTab({ onChange }: { onChange: () => void }) {
         <table className="mb-4 w-full text-[12px]">
           <tbody>
             {vets.map((v) => (
-              <tr key={v.id} className="border-b border-[#3a2415] text-bone-dark">
+              <tr key={v.id} className="border-b border-border text-bone-dark">
                 <td className="px-2 py-2 font-mono">{v.date}</td>
                 <td className="px-2 py-2">{v.reason}</td>
                 <td className="px-2 py-2 text-muted">{v.notes || '—'}</td>
@@ -316,7 +316,7 @@ export function HealthTab({ onChange }: { onChange: () => void }) {
         <Card key={c.id} className="mb-2 flex justify-between">
           <div>
             <div className="text-[13px] font-bold text-bone">
-              {c.label} {c.is_emergency ? <span className="text-[#E06050]">· Emergency</span> : null}
+              {c.label} {c.is_emergency ? <span className="text-bone">· Emergency</span> : null}
             </div>
             <div className="text-[12px] text-muted">
               {c.phone} {c.clinic ? `· ${c.clinic}` : ''}
@@ -348,7 +348,7 @@ export function HealthTab({ onChange }: { onChange: () => void }) {
           <div key={text} className="flex items-center gap-2.5 rounded-lg border border-border bg-charcoal p-3">
             <div
               className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                dot === 'good' ? 'bg-sage' : dot === 'warn' ? 'bg-[#D4A040]' : 'bg-[#E06050]'
+                dot === 'good' ? 'bg-sage' : dot === 'warn' ? 'bg-ochre' : 'bg-deep-red'
               }`}
             />
             <div>

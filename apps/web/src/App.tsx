@@ -6,6 +6,7 @@ import {
   setToken,
   type AnimalOverview,
   type Feed,
+  type Reminder,
 } from './api/client'
 import { JournalTab, LocalTab, PhotosTab, SettingsTab } from './components/ExtrasTabs'
 import { FeedingTab } from './components/FeedingTab'
@@ -79,7 +80,7 @@ function Login({ onOk }: { onOk: () => void }) {
             autoFocus
           />
         </Field>
-        {error && <p className="text-[13px] text-[#E06050]">{error}</p>}
+        {error && <p className="text-[13px] text-bone">{error}</p>}
         <Btn type="submit" disabled={busy}>
           Enter
         </Btn>
@@ -103,6 +104,37 @@ function daysUntilBirthday(dobIso: string): number {
     next = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate())
   }
   return Math.round((next.getTime() - today.getTime()) / 86400000)
+}
+
+function reminderLabel(severity: string) {
+  if (severity === 'high') return 'Needs attention'
+  if (severity === 'medium') return 'Due soon'
+  return 'Note'
+}
+
+function ReminderList({ reminders }: { reminders: Reminder[] }) {
+  if (!reminders.length) return null
+  return (
+    <section className="mt-4 space-y-1" aria-label="Care reminders">
+      {reminders.map((r) => {
+        const tone =
+          r.severity === 'high' ? 'reminder-high' : r.severity === 'medium' ? 'reminder-medium' : 'reminder-low'
+        return (
+          <div key={r.kind + r.message} className={`reminder ${tone}`}>
+            <div
+              className={`font-mono text-[10px] font-bold uppercase tracking-[0.1em] ${
+                r.severity === 'high' ? 'text-bone' : r.severity === 'medium' ? 'text-sand' : 'text-muted'
+              }`}
+            >
+              {reminderLabel(r.severity)}
+            </div>
+            <div className="mt-0.5 text-[13px] leading-snug text-bone">{r.message}</div>
+            {r.why && <div className="mt-0.5 text-[11px] leading-relaxed text-muted">{r.why}</div>}
+          </div>
+        )
+      })}
+    </section>
+  )
 }
 
 export default function App() {
@@ -171,10 +203,11 @@ export default function App() {
   }
 
   const bdayIn = daysUntilBirthday(animal.dob)
+  const mastheadReminders = animal.reminders.filter((r) => r.severity === 'high' || r.severity === 'medium')
 
   return (
     <div className="w-full max-w-[1100px] overflow-hidden bg-charcoal text-bone sm:rounded-2xl sm:border sm:border-border">
-      <header className="border-b border-border-hi bg-gradient-to-br from-bark to-[#1e1208] px-4 pb-4 pt-4 sm:px-6 sm:pt-5">
+      <header className="border-b border-border-hi bg-charcoal px-4 pb-4 pt-4 sm:px-6 sm:pt-5">
         <div className="mb-3.5 flex items-start justify-between gap-3">
           <div>
             <div className="font-display text-[24px] font-bold leading-tight text-bone sm:text-[28px]">{animal.name}</div>
@@ -184,19 +217,19 @@ export default function App() {
             <div className="mt-1 text-[13px] text-bone-dark">
               Owner: <span className="text-sand">{animal.owner}</span>
             </div>
-            <div className="mt-1.5 inline-block rounded-full border border-[#7a3a5a] bg-[#3a1a2a] px-2.5 py-1 font-mono text-[11px] text-[#D090B0]">
+            <div className="mt-1.5 inline-block rounded-full border border-border-hi bg-bark px-2.5 py-1 font-mono text-[11px] text-sand">
               ♀ {animal.sex}
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <div className="inline-block whitespace-nowrap rounded-full border border-olive bg-[#1a3a20] px-2.5 py-1 font-mono text-[11px] text-sage">
+            <div className="inline-block whitespace-nowrap rounded-full border border-olive bg-bark px-2.5 py-1 font-mono text-[11px] text-sage">
               ● {animal.status}
             </div>
             <div
               className={`mt-1.5 inline-block whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-[11px] ${
                 animal.clear_to_handle.ready
-                  ? 'border-olive bg-[#1a3a20] text-sage'
-                  : 'border-[#D4A040] bg-[#3a2a10] text-[#E8C080]'
+                  ? 'border-olive bg-bark text-sage'
+                  : 'border-sand bg-bark text-sand'
               }`}
             >
               {animal.clear_to_handle.ready
@@ -208,12 +241,12 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
-          <div className="col-span-2 min-w-0 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center sm:min-w-[140px] sm:flex-[2]">
+          <div className="col-span-2 min-w-0 rounded-[10px] border border-border-hi bg-bark px-3 py-2.5 text-center sm:min-w-[140px] sm:flex-[2]">
             <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted">Date of birth</div>
             <div className="font-mono text-[14px] text-bone-dark">{formatDob(animal.dob)}</div>
             <div
               className={`mt-1.5 font-display text-[16px] font-bold leading-none ${
-                bdayIn === 0 ? 'text-[#D4A040]' : 'text-sand'
+                bdayIn === 0 ? 'text-bone' : 'text-sand'
               }`}
             >
               {bdayIn === 0
@@ -222,21 +255,17 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
+            className={`min-w-0 rounded-[10px] border bg-bark px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
               animal.next_feed && animal.next_feed.days_until < 0
-                ? 'border-[#E06050]'
+                ? 'border-sand'
                 : animal.next_feed && animal.next_feed.days_until <= 2
-                  ? 'border-[#D4A040]'
+                  ? 'border-olive'
                   : 'border-border-hi'
             }`}
           >
             <div
               className={`font-display text-[18px] font-bold leading-none ${
-                animal.next_feed && animal.next_feed.days_until < 0
-                  ? 'text-[#E06050]'
-                  : animal.next_feed && animal.next_feed.days_until <= 2
-                    ? 'text-[#D4A040]'
-                    : 'text-sand'
+                animal.next_feed && animal.next_feed.days_until < 0 ? 'text-bone' : 'text-sand'
               }`}
             >
               {animal.next_feed?.due_date?.slice(5) || '—'}
@@ -244,11 +273,7 @@ export default function App() {
             <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Next feed</div>
             <div
               className={`mt-1 font-display text-[18px] font-bold leading-none ${
-                animal.next_feed && animal.next_feed.days_until < 0
-                  ? 'text-[#E06050]'
-                  : animal.next_feed && animal.next_feed.days_until <= 2
-                    ? 'text-[#D4A040]'
-                    : 'text-sand'
+                animal.next_feed && animal.next_feed.days_until < 0 ? 'text-bone' : 'text-sand'
               }`}
             >
               {animal.next_feed
@@ -261,18 +286,18 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
+            className={`min-w-0 rounded-[10px] border bg-bark px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
               animal.next_maintenance && animal.next_maintenance.days_until < 0
-                ? 'border-[#E06050]'
+                ? 'border-sand'
                 : animal.next_maintenance && animal.next_maintenance.days_until <= 1
-                  ? 'border-[#D4A040]'
+                  ? 'border-olive'
                   : 'border-border-hi'
             }`}
           >
             <div
               className={`font-display text-[18px] font-bold leading-none ${
                 animal.next_maintenance && animal.next_maintenance.days_until < 0
-                  ? 'text-[#E06050]'
+                  ? 'text-bone'
                   : 'text-sand'
               }`}
             >
@@ -292,15 +317,11 @@ export default function App() {
             </div>
           </div>
           <div
-            className={`min-w-0 rounded-[10px] border bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
-              animal.handling_gap.overdue ? 'border-[#D4A040]' : 'border-border-hi'
+            className={`min-w-0 rounded-[10px] border bg-bark px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1 ${
+              animal.handling_gap.overdue ? 'border-olive' : 'border-border-hi'
             }`}
           >
-            <div
-              className={`font-display text-[18px] font-bold leading-none ${
-                animal.handling_gap.overdue ? 'text-[#D4A040]' : 'text-sand'
-              }`}
-            >
+            <div className="font-display text-[18px] font-bold leading-none text-sand">
               {animal.handling_gap.last_date?.slice(5) || '—'}
             </div>
             <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Last han.</div>
@@ -314,7 +335,7 @@ export default function App() {
                     : `${animal.handling_gap.days_since}d ago`}
             </div>
           </div>
-          <div className="min-w-0 rounded-[10px] border border-border-hi bg-charcoal px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1">
+          <div className="min-w-0 rounded-[10px] border border-border-hi bg-bark px-3 py-2.5 text-center sm:min-w-[90px] sm:flex-1">
             <div className="font-display text-[18px] font-bold leading-none text-sand">
               {animal.last_shed?.date?.slice(5) || '—'}
             </div>
@@ -323,13 +344,14 @@ export default function App() {
           </div>
         </div>
         <div className="mt-2.5">
-          <span className="inline-block rounded-full border border-sand bg-[#4a2c14] px-3 py-1 font-mono text-[11px] text-sand">
+          <span className="inline-block rounded-full border border-sand bg-bark px-3 py-1 font-mono text-[11px] text-sand">
             {animal.stage.label} · {animal.stage.desc}
           </span>
         </div>
+        <ReminderList reminders={mastheadReminders} />
       </header>
 
-      <nav className="sticky top-0 z-10 flex gap-0 overflow-x-auto border-b border-border bg-[#1e1208] scrollbar-none [-webkit-overflow-scrolling:touch]">
+      <nav className="sticky top-0 z-10 flex gap-0 overflow-x-auto border-b border-border bg-charcoal scrollbar-none [-webkit-overflow-scrolling:touch]">
         {TABS.map((t) => (
           <button
             key={t.id}

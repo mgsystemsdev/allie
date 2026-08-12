@@ -39,7 +39,7 @@ export function Btn({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className="cursor-pointer rounded-[7px] border border-terracotta bg-deep-red px-4 py-2 text-xs font-bold uppercase tracking-[0.06em] text-bone transition hover:bg-terracotta disabled:opacity-50"
+      className="cursor-pointer rounded-[7px] border border-terracotta bg-deep-red px-4 py-2 text-xs font-bold uppercase tracking-[0.06em] text-inverse transition hover:bg-terracotta disabled:opacity-50"
     >
       {children}
     </button>
@@ -51,7 +51,7 @@ export function BtnSm({ children, onClick }: { children: ReactNode; onClick?: ()
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer rounded-[5px] border border-border-hi bg-[#4a2a18] px-2.5 py-1 font-mono text-[11px] text-muted hover:border-sand hover:text-bone"
+      className="cursor-pointer rounded-[5px] border border-border-hi bg-bark px-2.5 py-1 font-mono text-[11px] text-muted hover:border-sand hover:text-bone"
     >
       {children}
     </button>

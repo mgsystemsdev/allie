@@ -29,10 +29,10 @@ export function HabitatTab() {
       <SectionLabel>Temperature gradient (targets)</SectionLabel>
       <div className="mt-2 flex gap-2">
         {[
-          ['Basking', '90–95°F', '32–35°C', 'bg-[#5a2010] border-[#8a4020] text-[#F4A070]'],
-          ['Ambient warm', '80–84°F', '27–29°C', 'bg-[#3a2a10] border-[#6a4a20] text-[#E8C080]'],
-          ['Cool end', '75–79°F', '24–26°C', 'bg-[#1a2a3a] border-[#2a4a6a] text-[#90C0E8]'],
-          ['Night drop', '70–74°F', '21–23°C', 'bg-[#1a1a2a] border-[#2a2a5a] text-[#AAAADD]'],
+          ['Basking', '90–95°F', '32–35°C', 'bg-deep-red border-terracotta text-inverse'],
+          ['Ambient warm', '80–84°F', '27–29°C', 'bg-sand border-sand text-inverse'],
+          ['Cool end', '75–79°F', '24–26°C', 'bg-bark border-border-hi text-bone'],
+          ['Night drop', '70–74°F', '21–23°C', 'bg-charcoal border-border text-muted'],
         ].map(([l, v, s, cls]) => (
           <div key={l} className={`flex-1 rounded-lg border p-3 text-center ${cls}`}>
             <div className="mb-1 font-mono text-[9px] font-bold uppercase tracking-[0.1em] opacity-80">{l}</div>
@@ -95,7 +95,7 @@ export function HabitatTab() {
           </thead>
           <tbody>
             {readings.map((r) => (
-              <tr key={r.id} className="border-b border-[#3a2415] text-bone-dark">
+              <tr key={r.id} className="border-b border-border text-bone-dark">
                 <td className="px-2 py-2 font-mono text-[11px]">{r.recorded_at.slice(0, 16).replace('T', ' ')}</td>
                 <td className="px-2 py-2">{r.temp_hot_f}°</td>
                 <td className="px-2 py-2">{r.temp_cool_f}°</td>

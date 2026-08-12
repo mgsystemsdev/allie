@@ -193,7 +193,7 @@ export function SettingsTab({ onLogout }: { onLogout: () => void }) {
       const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title>
 <style>
   @page { margin: 16mm; }
-  body { margin: 0; background: #1a0e08; }
+  body { margin: 0; background: #ffffff; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
@@ -453,7 +453,7 @@ export function LocalTab() {
 
   return (
     <div>
-      <p className="mb-4 rounded-lg border border-border bg-[#2C201A] px-3 py-2 text-[12px] text-sand">
+      <p className="mb-4 rounded-lg border border-border bg-bark px-3 py-2 text-[12px] text-sand">
         Temporary local tools — export backups and import old index.html localStorage. Safe to delete this tab later.
       </p>
 

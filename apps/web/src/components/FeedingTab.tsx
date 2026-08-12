@@ -105,12 +105,12 @@ export function FeedingTab({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weights.map((w) => ({ date: w.date, weight: w.weight_g }))}>
-              <XAxis dataKey="date" stroke="#9C8068" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#9C8068" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="date" stroke="#737373" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#737373" tick={{ fontSize: 11 }} />
               <Tooltip
-                contentStyle={{ background: '#2C201A', border: '1px solid #5a3a22', color: '#F2E8D9' }}
+                contentStyle={{ background: '#ffffff', border: '1px solid #d4d4d4', color: '#000000' }}
               />
-              <Line type="monotone" dataKey="weight" stroke="#C4946A" strokeWidth={2} dot={{ fill: '#C4946A' }} />
+              <Line type="monotone" dataKey="weight" stroke="#404040" strokeWidth={2} dot={{ fill: '#404040' }} />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -124,7 +124,7 @@ export function FeedingTab({
           {[...weights].reverse().map((w) => (
             <li
               key={w.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-[#2a1a10] px-3 py-2 text-[13px]"
+              className="flex items-center justify-between rounded-lg border border-border bg-bark px-3 py-2 text-[13px]"
             >
               <div className="font-bold text-bone">
                 {w.date} · {w.weight_g}g
@@ -180,10 +180,10 @@ export function FeedingTab({
           {regurgs.map((r) => (
             <li
               key={r.id}
-              className="flex items-center justify-between rounded-lg border border-[#E06050]/40 bg-[#3a1510] px-3 py-2 text-[13px]"
+              className="flex items-center justify-between rounded-lg border border-sand bg-bark px-3 py-2 text-[13px]"
             >
               <div>
-                <div className="font-bold text-[#E08070]">
+                <div className="font-bold text-bone">
                   {r.date} · {r.severity}
                 </div>
                 <div className="text-muted">{r.notes || '—'}</div>
